@@ -2,7 +2,6 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from collections import Counter
-from meta_graph import build_meta_graph, save_meta_graph
 
 def build_graph():
     G = nx.Graph()
@@ -241,8 +240,6 @@ def build_graph():
     edges = G.edges(data=True)
     widths = [1 + d["weight"] * 0.7 for (_, _, d) in edges]
 
-    # inactive = {"Nekfeu", "Lomepal", "Roméo Elvis", "Mister V", "Zola"}
-
     ######################################
     #détection des "cliques" (groupes d'artistes tous connectés entre eux) pour colorier les nœuds en rouge s'ils font partie d'une clique avec au moins 3 artistes
     # 🟢 vert foncé → clique 1
@@ -341,7 +338,6 @@ def build_graph():
     )
 
     ######################################
-
     legend_elements = []
 
     for i, (cid, clique) in enumerate(sorted_cliques):
@@ -364,16 +360,11 @@ def build_graph():
         borderaxespad=0.
     )
 
-    plt.title("Cartographie d'artistes et leurs featurings — Graphe rap FR", fontsize=20)
-    plt.axis("off")
-    plt.tight_layout(rect=[0, 0, 0.82, 1])
-    plt.show()
+    return G
 
-def save_graph(G, path="data/graphe_artistes.gpickle"):
-    nx.write_gpickle(G, path)
+G = build_graph()
 
-
-if __name__ == "__main__":
-    G = build_graph()
-    save_graph(G)
-    print("✅ Graphe artistes généré et sauvegardé")
+plt.title("Cartographie d'artistes et leurs featurings — Graphe rap FR", fontsize=20)
+plt.axis("off")
+plt.tight_layout(rect=[0, 0, 0.82, 1])
+plt.show()
