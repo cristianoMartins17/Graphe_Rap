@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from collections import Counter
 
-def build_graph():
+def build_graph(show=True):
     G = nx.Graph()
 
     artistes = [
@@ -287,10 +287,10 @@ def build_graph():
             if node_clique_map[u] != node_clique_map[v]:
                 bridge_edges.append((u, v))
 
-    # 🟢 Couche 1 : nœuds
-    # ⚪ Couche 2 : liens normaux
-    # 🔴 Couche 3 : ponts inter-cliques
-    # 🟣 Couche 4 : numéros de cliques
+    # 🟢 : nœuds
+    # ⚪ : liens normaux
+    # 🔴 : ponts inter-cliques
+    # 🟣 : numéros de cliques
     pos = nx.circular_layout(G) 
     plt.figure(figsize=(17, 10))
 
@@ -360,11 +360,13 @@ def build_graph():
         borderaxespad=0.
     )
 
-    return G
+    if show:
+        plt.title("Cartographie d'artistes et leurs featurings — Graphe rap FR", fontsize=20)
+        plt.axis("off")
+        plt.tight_layout(rect=[0, 0, 0.82, 1])
+        plt.show()
 
-G = build_graph()
+    return G, big_cliques, node_clique_map, bridge_edges
 
-plt.title("Cartographie d'artistes et leurs featurings — Graphe rap FR", fontsize=20)
-plt.axis("off")
-plt.tight_layout(rect=[0, 0, 0.82, 1])
-plt.show()
+if __name__ == "__main__":
+    G, big_cliques, node_clique_map, bridge_edges = build_graph(show=True)
