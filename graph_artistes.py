@@ -18,7 +18,6 @@ def build_graph(show=True):
         "Gazo",
         "Hamza",
         "Josman",
-        "Jul",
         "Kaaris",
         "Kalash Criminel",
         "Koba LaD",
@@ -29,7 +28,6 @@ def build_graph(show=True):
         "Mister V",
         "Nekfeu",
         "Ziak",
-        "Djadja & Dinaz",
         "PLK",
         "Roméo Elvis",
         "SCH",
@@ -46,8 +44,12 @@ def build_graph(show=True):
     # Liste de collaborations réelles (sans compter les morceaux fictifs / mashups)
     raw_collabs = [
 
-        # Alpha Wann / Nekfeu : plusieurs feats ("Flingue et Feu", "Point d'interrogation",
-        # "Compte les hommes", "Vinyle", etc.)
+        # Alpha Wann / Nekfeu : tout les feats que je connais (hors groupe 1995, screw, etc)
+        ("Alpha Wann", "Nekfeu"),
+        ("Alpha Wann", "Nekfeu"),
+        ("Alpha Wann", "Nekfeu"),
+        ("Alpha Wann", "Nekfeu"),
+        ("Alpha Wann", "Nekfeu"),
         ("Alpha Wann", "Nekfeu"),
         ("Alpha Wann", "Nekfeu"),
         ("Alpha Wann", "Nekfeu"),
@@ -57,6 +59,10 @@ def build_graph(show=True):
         ("Alpha Wann", "Freeze Corleone"),
         ("Alpha Wann", "Freeze Corleone"),
 
+        # Alpha Wann / Laylow : "STUNTMEN" , "Vamonos"
+        ("Alpha Wann", "Laylow"),
+        ("Alpha Wann", "Laylow"),
+
         # Angèle / Damso : "Silence", "Démons, "Tout tenter" 
         ("Angèle", "Damso"),
         ("Angèle", "Damso"),
@@ -65,11 +71,17 @@ def build_graph(show=True):
         # "Angèle / Orelsan : "Evidemment"
         ("Angèle", "Orelsan"),
 
+        # "Angèle / Gazo : "Notre dame"
+        ("Angèle", "Gazo"),
+
+        # "Angèle / Tiakola : "Notre dame"
+        ("Angèle", "Tiakola"),
+
         # Angèle / Roméo Elvis : "Tout Oublier", "J’ai vu"
         ("Angèle", "Roméo Elvis"),
         ("Angèle", "Roméo Elvis"),
 
-        # Booba / Damso : plusieurs feats ("Pinocchio", "Paris c’est loin", "113") 
+        # Booba / Damso : "Pinocchio", "Paris c’est loin", "113"
         ("Booba", "Damso"),
         ("Booba", "Damso"),
         ("Booba", "Damso"),
@@ -88,7 +100,8 @@ def build_graph(show=True):
         # Damso / Disiz : "RENCONTRES" (feat documenté)
         ("Damso", "Disiz"),
 
-        # Damso / Hamza : plusieurs feats ("God Bless", "BXL ZOO" "Nocif") 
+        # Damso / Hamza : "God Bless", "BXL ZOO" "Nocif"
+        ("Damso", "Hamza"),
         ("Damso", "Hamza"),
         ("Damso", "Hamza"),
 
@@ -98,75 +111,109 @@ def build_graph(show=True):
         # Damso / Nekfeu : "Tricheurs" 
         ("Damso", "Nekfeu"),
 
-        # Damso / Orelsan : "Rêves bizarres" [web:122][web:124]
+        # Damso / Orelsan : "Rêves bizarres" 
         ("Damso", "Orelsan"),
 
-        # Di-Meh / Makala : Superwak Clique, multiples titres ensemble (on pondère à 2) [web:46][web:53]
+        # Damso / Gazo : "La Rue" "Bodies"
+        ("Damso", "Gazo"),
+        ("Damso", "Gazo"),
+
+        # Di-Meh / Makala : "Mortal kombat" "Golden" "depeche mode"
+        ("Di-Meh", "Makala"),
         ("Di-Meh", "Makala"),
         ("Di-Meh", "Makala"),
 
         ("Di-Meh", "Slimka"),
         ("Di-Meh", "Slimka"),
+        ("Di-Meh", "Slimka"),
+        ("Di-Meh", "Slimka"),
+        ("Di-Meh", "Slimka"),
+        ("Di-Meh", "Slimka"),
+        ("Di-Meh", "Slimka"),
+        ("Di-Meh", "Slimka"),
+        ("Di-Meh", "Slimka"),
+        ("Di-Meh", "Slimka"),
+        ("Di-Meh", "Slimka"),
 
-        # Disiz / Orelsan : "Go Go Gadget" [web:48][web:51]
+        # Di-Meh / Laylow : "Western Union"
+        ("Di-Meh", "Laylow"),
+
+        # Di-Meh / Roméo Elvis : "Ride"
+        ("Di-Meh", "Roméo Elvis"),
+
+        # Disiz / Orelsan : "Go Go Gadget" 
         ("Disiz", "Orelsan"),
 
-        # Djadja & Dinaz / Ninho : "J’fais mes affaires" (exemple, un feat confirmé) [web:11]
-        ("Djadja & Dinaz", "Ninho"),
-
-        # Djadja & Dinaz / Zola : feat confirmé sur un projet commun [web:11]
-        ("Djadja & Dinaz", "Zola"),
-
-        # Freeze Corleone / Kaaris : "IRM"
+        # Freeze Corleone / Kaaris : "Encore des problèmes", "Braquage à l'africaine pt5", "Apocalypse"
+        ("Freeze Corleone", "Kalash Criminel"),
+        ("Freeze Corleone", "Kalash Criminel"),
         ("Freeze Corleone", "Kalash Criminel"),
 
-        # Freeze Corleone / Kalash Criminel : "Rafale", "Chrome" (collabs drill FR) [web:101]
-        ("Freeze Corleone", "Kalash Criminel"),
+        # Freeze Corleone / Ninho : "Dictionnaire"
+        ("Freeze Corleone", "Ninho"),
 
-        # Gazo / Hamza : feat sur Mélo ("La Sauce" etc.) [web:131]
+        # Freeze Corleone / Gazo : "Drill FR4"
+        # Gazo / Hamza : "Drill FR5"
         ("Gazo", "Hamza"),
 
-        # Gazo / Ninho : "Mauvais 2x" [web:94][web:97]
+        # Gazo / Ninho : "C'est carré le S" "Mauvais 2x"
+        ("Gazo", "Ninho"),
         ("Gazo", "Ninho"),
 
-        # Gazo / Tiakola : La mélo est gangx, album commun (on pondère par ex. 3) [web:131][web:137]
+        # Gazo / Tiakola : 
+        ("Gazo", "Tiakola"),
+        ("Gazo", "Tiakola"),
+        ("Gazo", "Tiakola"),
+        ("Gazo", "Tiakola"),
+        ("Gazo", "Tiakola"),
+        ("Gazo", "Tiakola"),
+        ("Gazo", "Tiakola"),
+        ("Gazo", "Tiakola"),
+        ("Gazo", "Tiakola"),
+        ("Gazo", "Tiakola"),
         ("Gazo", "Tiakola"),
         ("Gazo", "Tiakola"),
         ("Gazo", "Tiakola"),
 
-        # Gazo / Werenoi : "La Famine", "Obscur" [web:93][web:99][web:102]
-        ("Gazo", "Werenoi"),
+        # Gazo / Werenoi : "La Famine"
         ("Gazo", "Werenoi"),
 
-        # Hamza / Josman : feat sur "God Bless" / scènes communes [web:21]
+        # Gazo / Orelsan : "Optimale"
+        ("Gazo", "Orelsan"),
+
+        # "Le classico organisé"
+        ("Gazo", "SCH"),
+        ("Gazo", "PLK"),
+        ("PLK", "SCH"),
+
+        # Hamza / Josman : "Sloppy toppy" "B!tch"
+        ("Hamza", "Josman"),
         ("Hamza", "Josman"),
 
-        # Hamza / Laylow : "Dégaine", "Life" (exemple de multiples collabs) [web:21]
-        ("Hamza", "Laylow"),
+        # Hamza / Laylow : "Window shopper Part 2"
         ("Hamza", "Laylow"),
 
-        # Hamza / Ninho : "Casanova", "No Hook" etc. [web:21]
-        ("Hamza", "Ninho"),
+        # Hamza / Ninho : "elle m'as dit"
         ("Hamza", "Ninho"),
 
-        # Hamza / PLK : "Pilote" (feat avec SCH), au moins un feat confirmé [web:21]
+        # Hamza / PLK : "Pilote" "En mieux"
+        ("Hamza", "PLK"),
         ("Hamza", "PLK"),
 
-        # Josman / Laylow : "PINEAPPLE", "Mauvais réflexe" (ex.) [web:21]
+        # Josman / Laylow : "Brule"
         ("Josman", "Laylow"),
 
-        # Josman / Makala : Superwak, plusieurs morceaux [web:46][web:53]
-        ("Josman", "Makala"),
-        ("Josman", "Makala"),
+        # Josman /Kalash Criminel : "Yemen pt1"
+        ("Josman", "Kalash Criminel"),
 
-        # Josman / Kalash Criminel / Damso : ensemble sur "Free Congo" [web:92][web:101]
+        # Josman / Kalash Criminel / Damso : ensemble sur "Free Congo"
         ("Josman", "Kalash Criminel"),
         ("Josman", "Damso"),
-
-        # Jul / SCH : "Rentrée dans le game", "Bande organisée" etc. [web:4][web:13]
-        ("Jul", "SCH"),
-        ("Jul", "SCH"),
-
+        ("Kalash Criminel", "Damso"),
+        ("Josman", "Ninho"),
+        ("Kalash Criminel", "Ninho"),
+        ("Damso", "Ninho"),
+        
         # Kaaris / Kalash Criminel : "Arrêt du cœur", "Tchalla" etc. [web:101]
         ("Kaaris", "Kalash Criminel"),
         ("Kaaris", "Kalash Criminel"),
@@ -266,7 +313,7 @@ def build_graph(show=True):
 
     # dictionnaire artiste -> couleur
 
-    node_clique_map = {}      # artiste -> id_clique
+    id_clique = {}      # artiste -> id_clique
     node_color_map = {}       # artiste -> couleur
 
     sorted_cliques = sorted(clique_ids.items(), key=lambda x: len(x[1]), reverse=True)
@@ -274,18 +321,18 @@ def build_graph(show=True):
     for i, (cid, clique) in enumerate(sorted_cliques):
         color = green_palette[i % len(green_palette)]
         for artist in clique:
-            if artist not in node_clique_map:   # priorité aux grosses cliques
-                node_clique_map[artist] = cid
+            if artist not in id_clique:   # priorité aux grosses cliques
+                id_clique[artist] = cid
                 node_color_map[artist] = color
                 print(f"Clique {i} ({len(clique)} artistes) : {clique} -> color {color}")
 
     # détection des "ponts" (arêtes qui relient des cliques différentes) pour les colorier en rouge 
-    bridge_edges = []
+    ponts = []
 
     for u, v in G.edges():
-        if u in node_clique_map and v in node_clique_map:
-            if node_clique_map[u] != node_clique_map[v]:
-                bridge_edges.append((u, v))
+        if u in id_clique and v in id_clique:
+            if id_clique[u] != id_clique[v]:
+                ponts.append((u, v))
 
     # 🟢 : nœuds
     # ⚪ : liens normaux
@@ -312,7 +359,7 @@ def build_graph(show=True):
     )
 
     # --- Couche 2 : arêtes normales ---
-    normal_edges = [e for e in G.edges() if e not in bridge_edges and (e[1], e[0]) not in bridge_edges]
+    normal_edges = [e for e in G.edges() if e not in ponts and (e[1], e[0]) not in ponts]
 
     nx.draw_networkx_edges(
         G, pos,
@@ -324,7 +371,7 @@ def build_graph(show=True):
     # --- Couche 3 : ponts inter-cliques ---
     nx.draw_networkx_edges(
         G, pos,
-        edgelist=bridge_edges,
+        edgelist=ponts,
         width=3,
         edge_color="red",
         alpha=0.9
@@ -366,7 +413,7 @@ def build_graph(show=True):
         plt.tight_layout(rect=[0, 0, 0.82, 1])
         plt.show()
 
-    return G, big_cliques, node_clique_map, bridge_edges
+    return G, big_cliques, id_clique, ponts
 
 if __name__ == "__main__":
-    G, big_cliques, node_clique_map, bridge_edges = build_graph(show=True)
+    G, big_cliques, id_clique, ponts = build_graph(show=True)

@@ -6,7 +6,7 @@ from graph_artistes import build_graph
 
 
 def build_meta_graph():
-    G, big_cliques, node_clique_map, bridge_edges = build_graph(show=False)
+    G, big_cliques, id_clique, ponts = build_graph(show=False)
 
     M = nx.Graph()  # Méta-graphe
 
@@ -25,9 +25,9 @@ def build_meta_graph():
     # ----------------------------
     added_edges = set()
 
-    for u, v in bridge_edges:
-        cu = node_clique_map[u]
-        cv = node_clique_map[v]
+    for u, v in ponts:
+        cu = id_clique[u]
+        cv = id_clique[v]
 
         if cu != cv:
             c1 = f"C{cu}"
