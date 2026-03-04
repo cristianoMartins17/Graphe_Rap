@@ -43,8 +43,7 @@ def build_meta_graph():
 def draw_meta_graph():
     M, clique_id_map = build_meta_graph()
 
-    pos = nx.spring_layout(M, seed=42)
-
+    pos = nx.circular_layout(M) 
     plt.figure(figsize=(17, 10))
 
     # Taille des noeuds proportionnelle à la taille de la clique

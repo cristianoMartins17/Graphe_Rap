@@ -1,9 +1,10 @@
 import networkx as nx
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+import matplotlib.lines as mlines
 from collections import Counter
 
-def build_graph(show=True):
+def build_graph(show):
     G = nx.Graph()
 
     artistes = [
@@ -285,7 +286,18 @@ def build_graph(show=True):
 
     # largeur des arêtes proportionnelle au poids
     edges = G.edges(data=True)
-    widths = [1 + d["weight"] * 0.7 for (_, _, d) in edges]
+    
+    # Recherche du poids maximum
+    max_weight = max(d["weight"] for (_, _, d) in edges)
+
+    # Liste des duos ayant ce poids
+    top_collabs = [(u, v, d["weight"]) for (u, v, d) in edges if d["weight"] == max_weight]
+
+    # Artistes à mettre en avant
+    top_artists = set()
+    for u, v, w in top_collabs:
+        top_artists.add(u)
+        top_artists.add(v)
 
     ######################################
     #détection des "cliques" (groupes d'artistes tous connectés entre eux) pour colorier les nœuds en rouge s'ils font partie d'une clique avec au moins 3 artistes
@@ -341,13 +353,22 @@ def build_graph(show=True):
     pos = nx.circular_layout(G) 
     plt.figure(figsize=(17, 10))
 
+    # Liste des duos ayant ce poids
+    top_collabs = [(u, v) for (u, v, d) in edges if d["weight"] == max_weight]
+
+    # Artistes à mettre en avant
+    top_artists = set()
+    for u, v in top_collabs:
+        top_artists.add(u)
+        top_artists.add(v)
+
     # Couleurs des nœuds
     node_colors = []
     for n in G.nodes():
         if n in node_color_map:
             node_colors.append(node_color_map[n])
         else:
-            node_colors.append("#87CEEB")  # hors clique
+            node_colors.append("#87CEEB")  # bleu clair pour les artistes hors cliques
 
 
     # --- Couche 1 : nœuds ---
@@ -358,23 +379,22 @@ def build_graph(show=True):
         alpha=0.95
     )
 
-    # --- Couche 2 : arêtes normales ---
-    normal_edges = [e for e in G.edges() if e not in ponts and (e[1], e[0]) not in ponts]
+    # --- Couche 2 : toutes les arêtes (pondérées) ---
+    edges = G.edges(data=True)
+
+    # Recherche du poids maximum
+    max_weight = max(d["weight"] for (_, _, d) in edges)
+
+
+    # largeur proportionnelle au poids
+    widths = [1 + d["weight"] * 0.7 for (_, _, d) in edges]
 
     nx.draw_networkx_edges(
         G, pos,
-        edgelist=normal_edges,
-        width=1.2,
-        alpha=0.3
-    )
-
-    # --- Couche 3 : ponts inter-cliques ---
-    nx.draw_networkx_edges(
-        G, pos,
-        edgelist=ponts,
-        width=3,
-        edge_color="red",
-        alpha=0.9
+        edgelist=G.edges(),
+        width=widths,
+        edge_color="#444444",
+        alpha=0.6
     )
 
     # --- Labels artistes ---
@@ -384,16 +404,28 @@ def build_graph(show=True):
         font_weight="bold"
     )
 
+    # Artistes les plus connectés entre eux
+    nx.draw_networkx_edges(
+        G, pos,
+        edgelist=top_collabs,
+        width=1 + max_weight * 0.7,
+        edge_color="red",
+        alpha=0.95
+    )
+
     ######################################
     legend_elements = []
+
+    for (u, v) in top_collabs:
+        label = f"{u} – {v} ({max_weight} feats)"
+        legend_elements.append(
+            mpatches.Patch(color="red", label=label)
+        )
 
     for i, (cid, clique) in enumerate(sorted_cliques):
         color = green_palette[i % len(green_palette)]
         label = f"C{cid} ({len(clique)} artistes)"
         legend_elements.append(mpatches.Patch(color=color, label=label))
-
-    # Ponts inter-cliques
-    legend_elements.append(mpatches.Patch(color="red", label="Pont inter-clique"))
 
     # Hors cliques
     legend_elements.append(mpatches.Patch(color="#87CEEB", label="Hors clique"))
