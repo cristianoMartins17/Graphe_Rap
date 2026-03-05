@@ -2,20 +2,14 @@
 ## Description
 
 Ce projet modélise et analyse les collaborations musicales (featurings) entre artistes du rap francophone en utilisant la théorie des graphes.
-
 Chaque artiste est représenté par un nœud et chaque collaboration par une arête pondérée correspondant au nombre de morceaux réalisés ensemble.
 
 L'objectif est de :
-
-construire un graphe de collaborations entre artistes
-
-détecter les cliques (groupes d’artistes fortement connectés)
-
-identifier les ponts entre cliques
-
-calculer le diamètre du graphe
-
-construire un méta-graphe des cliques permettant d’obtenir une vision plus abstraite du réseau
+- construire un graphe de collaborations entre artistes
+- détecter les cliques (groupes d’artistes fortement connectés)
+- identifier les ponts entre cliques
+- calculer le diamètre du graphe
+- construire un méta-graphe des cliques permettant d’obtenir une vision plus abstraite du réseau
 
 Ce projet a été réalisé dans le cadre d’un projet universitaire donné par un professeur, afin de mettre en pratique les concepts de théorie des graphes et d’analyse de réseaux avec Python.
 
@@ -33,8 +27,8 @@ Ce projet a été réalisé dans le cadre d’un projet universitaire donné par
 ## Technologies utilisées
 
 - Python
-- NetworkX — manipulation et analyse de graphes
-- Matplotlib — visualisation graphique
+- NetworkX = manipulation et analyse de graphes
+- Matplotlib = visualisation graphique
 
 Installation des dépendances :
 pip install networkx matplotlib
