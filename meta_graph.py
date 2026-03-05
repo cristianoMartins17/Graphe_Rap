@@ -1,107 +1,117 @@
-# meta_graphe.py
+"""
+==============
+Construction et affichage du méta-graphe des cliques.
+
+Chaque nœud  = une clique du graphe artistes.
+Chaque arête = au moins un pont inter-cliques reliant les deux cliques.
+"""
+
 import networkx as nx
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+
 from graph_artistes import build_graph
 
 
-def build_meta_graph():
-    G, big_cliques, id_clique, ponts = build_graph(show=False)
+# ---------------------------------------------------------------------------
+# Construction
+# ---------------------------------------------------------------------------
 
-    M = nx.Graph()  # Méta-graphe
+def construire_meta_graphe() -> tuple[nx.Graph, dict[str, list[str]]]:
+    """
+    Construit le méta-graphe à partir du graphe artistes.
 
-    # ----------------------------
-    # 1. Noeuds = cliques
-    # ----------------------------
-    clique_id_map = {}   # "C1" -> [artistes]
+    Retourne
+    --------
+    M              : méta-graphe (nœuds = cliques, arêtes = ponts inter-cliques)
+    composition    : identifiant de clique → liste d'artistes
+    """
+    G, grandes_cliques, id_clique, ponts = build_graph(show=False)
 
-    for i, clique in enumerate(big_cliques, start=1):
-        cid = f"C{i}"
-        M.add_node(cid, size=len(clique))
-        clique_id_map[cid] = clique
+    M           = nx.Graph()
+    composition = {}   # "C1" → [artistes]
 
-    # ----------------------------
-    # 2. Arêtes = ponts inter-cliques
-    # ----------------------------
-    added_edges = set()
+    # Nœuds : une clique = un nœud, taille stockée comme attribut
+    for numero, clique in enumerate(grandes_cliques, start=1):
+        cid = f"C{numero}"
+        M.add_node(cid, taille=len(clique))
+        composition[cid] = clique
+
+    # Arêtes : un pont inter-cliques = une arête dans M (sans doublon)
+    aretes_ajoutees: set[tuple[str, str]] = set()
 
     for u, v in ponts:
-        cu = id_clique[u]
-        cv = id_clique[v]
+        cid_u = f"C{id_clique[u]}"
+        cid_v = f"C{id_clique[v]}"
 
-        if cu != cv:
-            c1 = f"C{cu}"
-            c2 = f"C{cv}"
+        paire = tuple(sorted((cid_u, cid_v)))
+        if paire not in aretes_ajoutees:
+            M.add_edge(cid_u, cid_v)
+            aretes_ajoutees.add(paire)
 
-            if (c1, c2) not in added_edges and (c2, c1) not in added_edges:
-                M.add_edge(c1, c2)
-                added_edges.add((c1, c2))
-
-    return M, clique_id_map
+    return M, composition
 
 
-def draw_meta_graph():
-    M, clique_id_map = build_meta_graph()
+# ---------------------------------------------------------------------------
+# Affichage
+# ---------------------------------------------------------------------------
 
-    pos = nx.circular_layout(M) 
+def _legende_composition(composition: dict[str, list[str]]) -> str:
+    """Génère le texte de la légende listant la composition de chaque clique."""
+    lignes = ["Composition des cliques :\n"]
+    for cid, artistes in composition.items():
+        lignes.append(f"{cid} ({len(artistes)} artistes) :")
+        lignes.append("  " + ", ".join(sorted(artistes)) + "\n")
+    return "\n".join(lignes)
+
+
+def dessiner_meta_graphe() -> None:
+    """Construit et affiche le méta-graphe des cliques."""
+    M, composition = construire_meta_graphe()
+
+    pos = nx.circular_layout(M)
     plt.figure(figsize=(17, 10))
 
-    # Taille des noeuds proportionnelle à la taille de la clique
-    sizes = [1200 + (M.nodes[n]["size"] * 300) for n in M.nodes()]
+    # Taille des nœuds proportionnelle au nombre d'artistes dans la clique
+    tailles_nœuds = [1200 + M.nodes[n]["taille"] * 300 for n in M.nodes()]
 
-    # --- Noeuds ---
     nx.draw_networkx_nodes(
         M, pos,
-        node_size=sizes,
+        node_size=tailles_nœuds,
         node_color="#2E8B57",
-        alpha=0.95
+        alpha=0.95,
     )
-
-    # --- Arêtes (ponts) ---
     nx.draw_networkx_edges(
         M, pos,
         width=3,
         edge_color="red",
-        alpha=0.9
+        alpha=0.9,
     )
-
-    # --- Labels ---
     nx.draw_networkx_labels(
         M, pos,
         font_size=12,
         font_weight="bold",
-        font_color="white"
+        font_color="white",
     )
 
-    # ----------------------------
-    # LÉGENDE GRAPHIQUE
-    # ----------------------------
-    legend_elements = [
-        mpatches.Patch(color="#2E8B57", label="Clique (méta-noeud)"),
-        mpatches.Patch(color="red", label="Pont inter-clique"),
-    ]
-
+    # Légende graphique (patches)
     plt.legend(
-        handles=legend_elements,
+        handles=[
+            mpatches.Patch(color="#2E8B57", label="Clique (méta-nœud)"),
+            mpatches.Patch(color="red",     label="Pont inter-clique"),
+        ],
         loc="center left",
         bbox_to_anchor=(1.02, 0.5),
         fontsize=11,
-        frameon=True
+        frameon=True,
     )
 
-    # ----------------------------
-    # LÉGENDE TEXTUELLE (composition des cliques)
-    # ----------------------------
-    legend_text = "Composition des cliques :\n\n"
-    for cid, artists in clique_id_map.items():
-        legend_text += f"{cid} ({len(artists)} artistes) :\n"
-        legend_text += "  - " + ", ".join(sorted(artists)) + "\n\n"
-
+    # Légende textuelle (composition des cliques)
     plt.gcf().text(
         0.01, 0.5,
-        legend_text,
+        _legende_composition(composition),
         fontsize=10,
-        va='center'
+        va="center",
     )
 
     plt.title("MÉTA-GRAPHE DES CLIQUES — Réseau abstrait", fontsize=20)
@@ -111,4 +121,4 @@ def draw_meta_graph():
 
 
 if __name__ == "__main__":
-    draw_meta_graph()
+    dessiner_meta_graphe()

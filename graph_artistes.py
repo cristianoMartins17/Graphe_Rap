@@ -1,451 +1,393 @@
+"""
+==================
+Construction et affichage du graphe de collaborations (featurings)
+entre artistes du rap francophone.
+
+Chaque nœud  = un artiste.
+Chaque arête = au moins un featuring commun, pondérée par le nombre de morceaux.
+"""
+
 import networkx as nx
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-import matplotlib.lines as mlines
 from collections import Counter
 
-def build_graph(show):
+
+# ---------------------------------------------------------------------------
+# Données brutes
+# ---------------------------------------------------------------------------
+
+ARTISTES: list[str] = [
+    "Alpha Wann", "Angèle", "Booba", "Damso", "Di-Meh", "Disiz",
+    "Orelsan", "Freeze Corleone", "Gazo", "Hamza", "Josman", "Kaaris",
+    "Kalash Criminel", "Koba LaD", "Laylow", "Leto", "Lomepal", "Makala",
+    "Mister V", "Nekfeu", "Ziak", "PLK", "Roméo Elvis", "SCH", "SDM",
+    "Slimka", "Tiakola", "Vald", "Werenoi", "Ninho", "Zola",
+]
+
+# Une entrée par morceau. La syntaxe *[...] * N évite la répétition.
+COLLABORATIONS_BRUTES: list[tuple[str, str]] = [
+    # Alpha Wann × Nekfeu  (9 morceaux)
+    *[("Alpha Wann", "Nekfeu")] * 9,
+
+    # Alpha Wann × Freeze Corleone  — "Rap Catéchisme", "ny à fond"
+    *[("Alpha Wann", "Freeze Corleone")] * 2,
+
+    # Alpha Wann × Laylow  — "STUNTMEN", "Vamonos"
+    *[("Alpha Wann", "Laylow")] * 2,
+
+    # Angèle × Damso  — "Silence", "Démons", "Tout tenter"
+    *[("Angèle", "Damso")] * 3,
+
+    ("Angèle", "Orelsan"),          # "Évidemment"
+    ("Angèle", "Gazo"),             # "Notre dame"
+    ("Angèle", "Tiakola"),          # "Notre dame"
+
+    # Angèle × Roméo Elvis  — "Tout Oublier", "J'ai vu"
+    *[("Angèle", "Roméo Elvis")] * 2,
+
+    # Booba × Damso  — "Pinocchio", "Paris c'est loin", "113"
+    *[("Booba", "Damso")] * 3,
+
+    # Booba × Kaaris  — "L.E.F", "Kalash"
+    *[("Booba", "Kaaris")] * 2,
+
+    # Booba × SDM  — "La zone", "Daddy", "Bonne journée", "Dolce Camara", "92i"
+    *[("Booba", "SDM")] * 5,
+
+    ("Damso", "Disiz"),             # "RENCONTRES"
+
+    # Damso × Hamza  — "God Bless", "BXL ZOO", "Nocif"
+    *[("Damso", "Hamza")] * 3,
+
+    ("Damso", "Laylow"),            # "R9RLine"
+    ("Damso", "Nekfeu"),            # "Tricheurs"
+    ("Damso", "Orelsan"),           # "Rêves bizarres"
+
+    # Damso × Gazo  — "La Rue", "Bodies"
+    *[("Damso", "Gazo")] * 2,
+
+    # Di-Meh × Makala  — "Mortal Kombat", "Golden", "Depeche Mode"
+    *[("Di-Meh", "Makala")] * 3,
+
+    # Di-Meh × Slimka  (11 morceaux)
+    *[("Di-Meh", "Slimka")] * 11,
+
+    ("Di-Meh", "Laylow"),           # "Western Union"
+    ("Di-Meh", "Roméo Elvis"),      # "Ride"
+    ("Disiz", "Orelsan"),           # "Go Go Gadget"
+
+    # Freeze Corleone × Kalash Criminel  — 3 morceaux
+    *[("Freeze Corleone", "Kalash Criminel")] * 3,
+
+    ("Freeze Corleone", "Ninho"),   # "Dictionnaire"
+    ("Gazo", "Hamza"),              # "Drill FR5"
+
+    # Gazo × Ninho  — "C'est carré le S", "Mauvais 2x"
+    *[("Gazo", "Ninho")] * 2,
+
+    # Gazo × Tiakola  (13 morceaux)
+    *[("Gazo", "Tiakola")] * 13,
+
+    ("Gazo", "Werenoi"),            # "La Famine"
+    ("Gazo", "Orelsan"),            # "Optimale"
+
+    # Le classico organisé
+    ("Gazo", "SCH"), ("Gazo", "PLK"), ("PLK", "SCH"),
+
+    # Hamza × Josman  — "Sloppy Toppy", "B!tch"
+    *[("Hamza", "Josman")] * 2,
+
+    ("Hamza", "Laylow"),            # "Window Shopper Part 2"
+    ("Hamza", "Ninho"),             # "Elle m'a dit"
+
+    # Hamza × PLK  — "Pilote", "En mieux"
+    *[("Hamza", "PLK")] * 2,
+
+    ("Josman", "Laylow"),           # "Brûle"
+
+    # Josman × Kalash Criminel  — "Yémen pt1" + "Free Congo"
+    *[("Josman", "Kalash Criminel")] * 2,
+
+    # Free Congo  — Josman, Kalash Criminel, Damso, Ninho
+    ("Josman", "Damso"),
+    ("Kalash Criminel", "Damso"),
+    ("Josman", "Ninho"),
+    ("Kalash Criminel", "Ninho"),
+    ("Damso", "Ninho"),
+
+    # Kaaris × Kalash Criminel  — "Arrêt du cœur", "Tchalla"
+    *[("Kaaris", "Kalash Criminel")] * 2,
+
+    ("Kalash Criminel", "Ziak"),    # "Zone en personne"
+    ("Koba LaD", "Ninho"),          # "La zone"
+    ("Laylow", "SCH"),              # "Fallen Angels"
+    ("Laylow", "Nekfeu"),           # "Spécial"
+    ("Leto", "Ninho"),              # "Tes parents"
+    ("Leto", "PLK"),                # "Train de vie"
+    ("Leto", "Hamza"),              # "Rodéo Drive"
+    ("Lomepal", "Orelsan"),         # "La vérité"
+
+    # Lomepal × Roméo Elvis  — "1000°C", "Billet"
+    *[("Lomepal", "Roméo Elvis")] * 2,
+
+    # Makala × Slimka  — "Superwak" + autres
+    *[("Makala", "Slimka")] * 2,
+
+    ("Mister V", "PLK"),            # "MPLK", "Jamais"
+    ("Nekfeu", "Orelsan"),          # "Zone"
+
+    # Ninho × PLK  — "On sait jamais", "Problèmes"
+    *[("Ninho", "PLK")] * 2,
+
+    ("Ninho", "Tiakola"),           # "Vérité", "Elle m'a eu"
+    ("Ninho", "Werenoi"),           # "3 singes", "Safari"
+    ("SDM", "Tiakola"),             # "J'y pense"
+    ("Tiakola", "Werenoi"),         # "Ciao"
+]
+
+# Palette de verts pour colorier les cliques (indice 0 = plus grande clique)
+PALETTE_VERTS: list[str] = [
+    "#006400",  # darkgreen
+    "#228B22",  # forestgreen
+    "#2E8B57",  # seagreen
+    "#3CB371",  # mediumseagreen
+    "#66CDAA",  # mediumaquamarine
+    "#20B2AA",  # lightseagreen
+    "#008080",  # teal
+    "#9ACD32",  # yellowgreen
+    "#6B8E23",  # olivedrab
+]
+COULEUR_HORS_CLIQUE = "#87CEEB"  # bleu clair
+COULEUR_TOP_COLLAB  = "red"
+COULEUR_DIAMETRE    = "purple"
+
+
+# ---------------------------------------------------------------------------
+# Construction du graphe
+# ---------------------------------------------------------------------------
+
+def construire_graphe() -> nx.Graph:
+    """Construit le graphe pondéré artiste ↔ artiste depuis les données brutes."""
     G = nx.Graph()
+    G.add_nodes_from(ARTISTES)
 
-    artistes = [
-        "Alpha Wann",
-        "Angèle",
-        "Booba",
-        "Damso",
-        "Di-Meh",
-        "Disiz",
-        "Orelsan",
-        "Freeze Corleone",
-        "Gazo",
-        "Hamza",
-        "Josman",
-        "Kaaris",
-        "Kalash Criminel",
-        "Koba LaD",
-        "Laylow",
-        "Leto",
-        "Lomepal",
-        "Makala",
-        "Mister V",
-        "Nekfeu",
-        "Ziak",
-        "PLK",
-        "Roméo Elvis",
-        "SCH",
-        "SDM",
-        "Slimka",
-        "Tiakola",
-        "Vald",
-        "Werenoi",
-        "Ninho",
-        "Zola",
-    ]
-    G.add_nodes_from(artistes)
+    poids_aretes = Counter(tuple(sorted(paire)) for paire in COLLABORATIONS_BRUTES)
+    for (artiste_a, artiste_b), poids in poids_aretes.items():
+        G.add_edge(artiste_a, artiste_b, weight=poids)
 
-    # Liste de collaborations réelles (sans compter les morceaux fictifs / mashups)
-    raw_collabs = [
+    return G
 
-        # Alpha Wann / Nekfeu : tout les feats que je connais (hors groupe 1995, screw, etc)
-        ("Alpha Wann", "Nekfeu"),
-        ("Alpha Wann", "Nekfeu"),
-        ("Alpha Wann", "Nekfeu"),
-        ("Alpha Wann", "Nekfeu"),
-        ("Alpha Wann", "Nekfeu"),
-        ("Alpha Wann", "Nekfeu"),
-        ("Alpha Wann", "Nekfeu"),
-        ("Alpha Wann", "Nekfeu"),
-        ("Alpha Wann", "Nekfeu"),
 
-        # Alpha Wann / Freeze Corleone : "Rap Catéchisme" + "ny à fond"
-        ("Alpha Wann", "Freeze Corleone"),
-        ("Alpha Wann", "Freeze Corleone"),
+def detecter_cliques(G: nx.Graph) -> tuple[
+    list[list[str]],
+    dict[str, int],
+    dict[str, str],
+]:
+    """
+    Détecte toutes les cliques de taille ≥ 3 dans G.
 
-        # Alpha Wann / Laylow : "STUNTMEN" , "Vamonos"
-        ("Alpha Wann", "Laylow"),
-        ("Alpha Wann", "Laylow"),
+    Retourne
+    --------
+    grandes_cliques : liste des cliques retenues (ordre quelconque)
+    id_clique       : artiste → numéro de clique (1-indexé, priorité aux plus grandes)
+    couleur_nœud    : artiste → couleur hexadécimale
+    """
+    grandes_cliques = [c for c in nx.find_cliques(G) if len(c) >= 3]
+    cliques_triees  = sorted(grandes_cliques, key=len, reverse=True)
 
-        # Angèle / Damso : "Silence", "Démons, "Tout tenter" 
-        ("Angèle", "Damso"),
-        ("Angèle", "Damso"),
-        ("Angèle", "Damso"),
+    id_clique:    dict[str, int] = {}
+    couleur_nœud: dict[str, str] = {}
 
-        # "Angèle / Orelsan : "Evidemment"
-        ("Angèle", "Orelsan"),
+    for numero, clique in enumerate(cliques_triees):
+        couleur = PALETTE_VERTS[numero % len(PALETTE_VERTS)]
+        for artiste in clique:
+            if artiste not in id_clique:   # priorité à la plus grande clique
+                id_clique[artiste]    = numero + 1
+                couleur_nœud[artiste] = couleur
 
-        # "Angèle / Gazo : "Notre dame"
-        ("Angèle", "Gazo"),
+    return grandes_cliques, id_clique, couleur_nœud
 
-        # "Angèle / Tiakola : "Notre dame"
-        ("Angèle", "Tiakola"),
 
-        # Angèle / Roméo Elvis : "Tout Oublier", "J’ai vu"
-        ("Angèle", "Roméo Elvis"),
-        ("Angèle", "Roméo Elvis"),
-
-        # Booba / Damso : "Pinocchio", "Paris c’est loin", "113"
-        ("Booba", "Damso"),
-        ("Booba", "Damso"),
-        ("Booba", "Damso"),
-
-        # Booba / Kaaris :  "L.E.F" "Kalash"
-        ("Booba", "Kaaris"),
-        ("Booba", "Kaaris"),
-
-        # Booba / SDM : plusieurs feats ("La zone", "Daddy", "Bonne journée", "Dolce Camara", "92i")
-        ("Booba", "SDM"),
-        ("Booba", "SDM"),
-        ("Booba", "SDM"),
-        ("Booba", "SDM"),
-        ("Booba", "SDM"),
-
-        # Damso / Disiz : "RENCONTRES" (feat documenté)
-        ("Damso", "Disiz"),
-
-        # Damso / Hamza : "God Bless", "BXL ZOO" "Nocif"
-        ("Damso", "Hamza"),
-        ("Damso", "Hamza"),
-        ("Damso", "Hamza"),
-
-        # Damso / Laylow : "R9RLine" 
-        ("Damso", "Laylow"),
-
-        # Damso / Nekfeu : "Tricheurs" 
-        ("Damso", "Nekfeu"),
-
-        # Damso / Orelsan : "Rêves bizarres" 
-        ("Damso", "Orelsan"),
-
-        # Damso / Gazo : "La Rue" "Bodies"
-        ("Damso", "Gazo"),
-        ("Damso", "Gazo"),
-
-        # Di-Meh / Makala : "Mortal kombat" "Golden" "depeche mode"
-        ("Di-Meh", "Makala"),
-        ("Di-Meh", "Makala"),
-        ("Di-Meh", "Makala"),
-
-        ("Di-Meh", "Slimka"),
-        ("Di-Meh", "Slimka"),
-        ("Di-Meh", "Slimka"),
-        ("Di-Meh", "Slimka"),
-        ("Di-Meh", "Slimka"),
-        ("Di-Meh", "Slimka"),
-        ("Di-Meh", "Slimka"),
-        ("Di-Meh", "Slimka"),
-        ("Di-Meh", "Slimka"),
-        ("Di-Meh", "Slimka"),
-        ("Di-Meh", "Slimka"),
-
-        # Di-Meh / Laylow : "Western Union"
-        ("Di-Meh", "Laylow"),
-
-        # Di-Meh / Roméo Elvis : "Ride"
-        ("Di-Meh", "Roméo Elvis"),
-
-        # Disiz / Orelsan : "Go Go Gadget" 
-        ("Disiz", "Orelsan"),
-
-        # Freeze Corleone / Kaaris : "Encore des problèmes", "Braquage à l'africaine pt5", "Apocalypse"
-        ("Freeze Corleone", "Kalash Criminel"),
-        ("Freeze Corleone", "Kalash Criminel"),
-        ("Freeze Corleone", "Kalash Criminel"),
-
-        # Freeze Corleone / Ninho : "Dictionnaire"
-        ("Freeze Corleone", "Ninho"),
-
-        # Freeze Corleone / Gazo : "Drill FR4"
-        # Gazo / Hamza : "Drill FR5"
-        ("Gazo", "Hamza"),
-
-        # Gazo / Ninho : "C'est carré le S" "Mauvais 2x"
-        ("Gazo", "Ninho"),
-        ("Gazo", "Ninho"),
-
-        # Gazo / Tiakola : 
-        ("Gazo", "Tiakola"),
-        ("Gazo", "Tiakola"),
-        ("Gazo", "Tiakola"),
-        ("Gazo", "Tiakola"),
-        ("Gazo", "Tiakola"),
-        ("Gazo", "Tiakola"),
-        ("Gazo", "Tiakola"),
-        ("Gazo", "Tiakola"),
-        ("Gazo", "Tiakola"),
-        ("Gazo", "Tiakola"),
-        ("Gazo", "Tiakola"),
-        ("Gazo", "Tiakola"),
-        ("Gazo", "Tiakola"),
-
-        # Gazo / Werenoi : "La Famine"
-        ("Gazo", "Werenoi"),
-
-        # Gazo / Orelsan : "Optimale"
-        ("Gazo", "Orelsan"),
-
-        # "Le classico organisé"
-        ("Gazo", "SCH"),
-        ("Gazo", "PLK"),
-        ("PLK", "SCH"),
-
-        # Hamza / Josman : "Sloppy toppy" "B!tch"
-        ("Hamza", "Josman"),
-        ("Hamza", "Josman"),
-
-        # Hamza / Laylow : "Window shopper Part 2"
-        ("Hamza", "Laylow"),
-
-        # Hamza / Ninho : "elle m'as dit"
-        ("Hamza", "Ninho"),
-
-        # Hamza / PLK : "Pilote" "En mieux"
-        ("Hamza", "PLK"),
-        ("Hamza", "PLK"),
-
-        # Josman / Laylow : "Brule"
-        ("Josman", "Laylow"),
-
-        # Josman /Kalash Criminel : "Yemen pt1"
-        ("Josman", "Kalash Criminel"),
-
-        # Josman / Kalash Criminel / Damso : ensemble sur "Free Congo"
-        ("Josman", "Kalash Criminel"),
-        ("Josman", "Damso"),
-        ("Kalash Criminel", "Damso"),
-        ("Josman", "Ninho"),
-        ("Kalash Criminel", "Ninho"),
-        ("Damso", "Ninho"),
-        
-        # Kaaris / Kalash Criminel : "Arrêt du cœur", "Tchalla" etc. [web:101]
-        ("Kaaris", "Kalash Criminel"),
-        ("Kaaris", "Kalash Criminel"),
-
-        # Kalash Criminel / Ziak : "Zone en personne" (exemple d’un feat drill) [web:53]
-        ("Kalash Criminel", "Ziak"),
-
-        # Koba LaD / Ninho : "La zone" (ex.) [web:98]
-        ("Koba LaD", "Ninho"),
-
-        # Laylow / SCH : "Fallen Angels" (ex. collab sur des projets récents) [web:21]
-        ("Laylow", "SCH"),
-
-        # Laylow / Nekfeu : "Spécial" [web:21]
-        ("Laylow", "Nekfeu"),
-
-        # Leto / Ninho : "Tes parents" (ex.) [web:98]
-        ("Leto", "Ninho"),
-
-        # Leto / PLK : "Train de vie" (exemple documenté) [web:104]
-        ("Leto", "PLK"),
-
-        # Leto / Hamza : "Rodéo Drive"]
-        ("Leto", "Hamza"),
-
-        # Lomepal / Orelsan : "La vérité"
-        ("Lomepal", "Orelsan"),
-
-        # Lomepal / Roméo Elvis : "1000°C", "Billet" [web:115][web:118]
-        ("Lomepal", "Roméo Elvis"),
-        ("Lomepal", "Roméo Elvis"),
-
-        # Makala / Slimka : Superwak, multiples morceaux [web:46][web:53]
-        ("Makala", "Slimka"),
-        ("Makala", "Slimka"),
-
-        # Mister V / PLK : "MPLK" / "Jamais" etc. [web:71][web:74]
-        ("Mister V", "PLK"),
-
-        # Nekfeu / Orelsan : "Zone" (ex. feat commun), plus feat avec S-Crew/Orelsan [web:81][web:84]
-        ("Nekfeu", "Orelsan"),
-
-        # Ninho / PLK : "On sait jamais", "Problèmes" (plusieurs feats) [web:104]
-        ("Ninho", "PLK"),
-        ("Ninho", "PLK"),
-
-        # Ninho / Tiakola : "Vérité", "Elle m’a eu" (ex.) [web:131]
-        ("Ninho", "Tiakola"),
-
-        # Ninho / Werenoi : "3 singes", "Safari" (ex.) [web:102]
-        ("Ninho", "Werenoi"),
-
-        # Orelsan / Vald : aucun feat officiel studio, seulement scènes / mashups → on ne met pas de poids
-        # ("Orelsan", "Vald"),
-
-        # SDM / Tiakola : "J’y pense" [web:131]
-        ("SDM", "Tiakola"),
-
-        # Tiakola / Werenoi : "Ciao" (ex.) [web:102]
-        ("Tiakola", "Werenoi"),
+def detecter_ponts(G: nx.Graph, id_clique: dict[str, int]) -> list[tuple[str, str]]:
+    """Retourne les arêtes reliant deux cliques différentes (ponts inter-cliques)."""
+    return [
+        (u, v)
+        for u, v in G.edges()
+        if u in id_clique and v in id_clique and id_clique[u] != id_clique[v]
     ]
 
-    ######################################
-    # Comptage des poids
-    counts = Counter(tuple(sorted(e)) for e in raw_collabs)
 
-    for (a, b), w in counts.items():
-        G.add_edge(a, b, weight=w)
+def trouver_diametre(G: nx.Graph) -> tuple[tuple[str, str], int]:
+    """
+    Calcule le diamètre du graphe par BFS depuis chaque nœud.
 
-    # largeur des arêtes proportionnelle au poids
-    edges = G.edges(data=True)
-    
-    # Recherche du poids maximum
-    max_weight = max(d["weight"] for (_, _, d) in edges)
+    Retourne ((source, cible), distance_maximale).
+    """
+    distance_max = -1
+    extremites   = (None, None)
 
-    # Liste des duos ayant ce poids
-    top_collabs = [(u, v, d["weight"]) for (u, v, d) in edges if d["weight"] == max_weight]
+    for source in G.nodes:
+        for cible, distance in nx.shortest_path_length(G, source).items():
+            if distance > distance_max:
+                distance_max = distance
+                extremites   = (source, cible)
 
-    # Artistes à mettre en avant
-    top_artists = set()
-    for u, v, w in top_collabs:
-        top_artists.add(u)
-        top_artists.add(v)
+    return extremites, distance_max
 
-    ######################################
-    #détection des "cliques" (groupes d'artistes tous connectés entre eux) pour colorier les nœuds en rouge s'ils font partie d'une clique avec au moins 3 artistes
-    # 🟢 vert foncé → clique 1
-    # 🟢 vert moyen → clique 2
-    # 🟢 vert clair → clique 3
-    # 🔵 bleu → artistes hors cliques
 
-    green_palette = [
-        "#006400",  # darkgreen
-        "#228B22",  # forestgreen
-        "#2E8B57",  # seagreen
-        "#3CB371",  # mediumseagreen
-        "#66CDAA",  # mediumaquamarine
-        "#20B2AA",  # lightseagreen
-        "#008080",  # teal
-        "#9ACD32",  # yellowgreen
-        "#6B8E23",  # olivedrab
-    ]
-    cliques = list(nx.find_cliques(G))
-    big_cliques = [c for c in cliques if len(c) >= 3]
+# ---------------------------------------------------------------------------
+# Helpers d'affichage (usage interne)
+# ---------------------------------------------------------------------------
 
-    # Numérotation des cliques
-    clique_ids = {i: c for i, c in enumerate(big_cliques, 1)}
+def _couleurs_nœuds(G: nx.Graph, couleur_nœud: dict[str, str]) -> list[str]:
+    return [couleur_nœud.get(n, COULEUR_HORS_CLIQUE) for n in G.nodes()]
 
-    # dictionnaire artiste -> couleur
 
-    id_clique = {}      # artiste -> id_clique
-    node_color_map = {}       # artiste -> couleur
+def _top_collabs(G: nx.Graph) -> tuple[list[tuple[str, str]], int]:
+    """Retourne (arêtes_de_poids_max, poids_max)."""
+    poids_max   = max(d["weight"] for *_, d in G.edges(data=True))
+    top_aretes  = [(u, v) for u, v, d in G.edges(data=True) if d["weight"] == poids_max]
+    return top_aretes, poids_max
 
-    sorted_cliques = sorted(clique_ids.items(), key=lambda x: len(x[1]), reverse=True)
 
-    for i, (cid, clique) in enumerate(sorted_cliques):
-        color = green_palette[i % len(green_palette)]
-        for artist in clique:
-            if artist not in id_clique:   # priorité aux grosses cliques
-                id_clique[artist] = cid
-                node_color_map[artist] = color
-                print(f"Clique {i} ({len(clique)} artistes) : {clique} -> color {color}")
+def _construire_legende(
+    top_aretes:      list[tuple[str, str]],
+    poids_max:       int,
+    grandes_cliques: list[list[str]],
+) -> list[mpatches.Patch]:
+    """Construit la liste de patches pour la légende matplotlib."""
+    elements: list[mpatches.Patch] = []
 
-    # détection des "ponts" (arêtes qui relient des cliques différentes) pour les colorier en rouge 
-    ponts = []
+    for u, v in top_aretes:
+        elements.append(mpatches.Patch(
+            color=COULEUR_TOP_COLLAB,
+            label=f"{u} – {v} ({poids_max} feats)",
+        ))
 
-    for u, v in G.edges():
-        if u in id_clique and v in id_clique:
-            if id_clique[u] != id_clique[v]:
-                ponts.append((u, v))
+    for numero, clique in enumerate(sorted(grandes_cliques, key=len, reverse=True)):
+        elements.append(mpatches.Patch(
+            color=PALETTE_VERTS[numero % len(PALETTE_VERTS)],
+            label=f"C{numero + 1} ({len(clique)} artistes)",
+        ))
 
-    # 🟢 : nœuds
-    # ⚪ : liens normaux
-    # 🔴 : ponts inter-cliques
-    # 🟣 : numéros de cliques
-    pos = nx.circular_layout(G) 
+    elements.append(mpatches.Patch(color=COULEUR_HORS_CLIQUE, label="Hors clique"))
+    return elements
+
+
+def afficher_diametre(G: nx.Graph, pos: dict) -> None:
+    """Calcule, affiche en console et trace le chemin diamétral sur la figure courante."""
+    (source, cible), distance = trouver_diametre(G)
+
+    print("\n=== Diamètre du graphe ===")
+    print(f"Artistes les plus éloignés : {source} ↔ {cible}")
+    print(f"Distance : {distance}")
+    chemin = nx.shortest_path(G, source, cible)
+    print("Chemin : " + " → ".join(chemin))
+
+    nx.draw_networkx_edges(
+        G, pos,
+        edgelist=list(zip(chemin, chemin[1:])),
+        width=5,
+        edge_color=COULEUR_DIAMETRE,
+        alpha=1,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Affichage principal
+# ---------------------------------------------------------------------------
+
+def dessiner_graphe(
+    G:               nx.Graph,
+    grandes_cliques: list[list[str]],
+    couleur_nœud:    dict[str, str],
+) -> None:
+    """Dessine le graphe complet avec nœuds, arêtes pondérées, légende et diamètre."""
+    pos = nx.circular_layout(G)
     plt.figure(figsize=(17, 10))
 
-    # Liste des duos ayant ce poids
-    top_collabs = [(u, v) for (u, v, d) in edges if d["weight"] == max_weight]
+    top_aretes, poids_max = _top_collabs(G)
 
-    # Artistes à mettre en avant
-    top_artists = set()
-    for u, v in top_collabs:
-        top_artists.add(u)
-        top_artists.add(v)
-
-    # Couleurs des nœuds
-    node_colors = []
-    for n in G.nodes():
-        if n in node_color_map:
-            node_colors.append(node_color_map[n])
-        else:
-            node_colors.append("#87CEEB")  # bleu clair pour les artistes hors cliques
-
-
-    # --- Couche 1 : nœuds ---
+    # Nœuds
     nx.draw_networkx_nodes(
         G, pos,
         node_size=1400,
-        node_color=node_colors,
-        alpha=0.95
+        node_color=_couleurs_nœuds(G, couleur_nœud),
+        alpha=0.95,
     )
 
-    # --- Couche 2 : toutes les arêtes (pondérées) ---
-    edges = G.edges(data=True)
-
-    # Recherche du poids maximum
-    max_weight = max(d["weight"] for (_, _, d) in edges)
-
-
-    # largeur proportionnelle au poids
-    widths = [1 + d["weight"] * 0.7 for (_, _, d) in edges]
-
+    # Toutes les arêtes (largeur ∝ poids)
     nx.draw_networkx_edges(
         G, pos,
-        edgelist=G.edges(),
-        width=widths,
+        edgelist=list(G.edges()),
+        width=[1 + d["weight"] * 0.7 for *_, d in G.edges(data=True)],
         edge_color="#444444",
-        alpha=0.6
+        alpha=0.6,
     )
 
-    # --- Labels artistes ---
-    nx.draw_networkx_labels(
-        G, pos,
-        font_size=9,
-        font_weight="bold"
-    )
-
-    # Artistes les plus connectés entre eux
+    # Top collabs mis en valeur par-dessus
     nx.draw_networkx_edges(
         G, pos,
-        edgelist=top_collabs,
-        width=1 + max_weight * 0.7,
-        edge_color="red",
-        alpha=0.95
+        edgelist=top_aretes,
+        width=1 + poids_max * 0.7,
+        edge_color=COULEUR_TOP_COLLAB,
+        alpha=0.95,
     )
 
-    ######################################
-    legend_elements = []
-
-    for (u, v) in top_collabs:
-        label = f"{u} – {v} ({max_weight} feats)"
-        legend_elements.append(
-            mpatches.Patch(color="red", label=label)
-        )
-
-    for i, (cid, clique) in enumerate(sorted_cliques):
-        color = green_palette[i % len(green_palette)]
-        label = f"C{cid} ({len(clique)} artistes)"
-        legend_elements.append(mpatches.Patch(color=color, label=label))
-
-    # Hors cliques
-    legend_elements.append(mpatches.Patch(color="#87CEEB", label="Hors clique"))
+    nx.draw_networkx_labels(G, pos, font_size=9, font_weight="bold")
 
     plt.legend(
-        handles=legend_elements,
+        handles=_construire_legende(top_aretes, poids_max, grandes_cliques),
         loc="center left",
         bbox_to_anchor=(1.02, 0.5),
         fontsize=10,
         frameon=True,
-        borderaxespad=0.
+        borderaxespad=0.0,
     )
 
-    if show:
-        plt.title("Cartographie d'artistes et leurs featurings — Graphe rap FR", fontsize=20)
-        plt.axis("off")
-        plt.tight_layout(rect=[0, 0, 0.82, 1])
-        plt.show()
+    plt.title("Cartographie d'artistes et leurs featurings — Graphe rap FR", fontsize=20)
+    plt.axis("off")
+    plt.tight_layout(rect=[0, 0, 0.82, 1])
 
-    return G, big_cliques, id_clique, ponts
+    afficher_diametre(G, pos)
+    plt.show()
+
+
+# ---------------------------------------------------------------------------
+# Point d'entrée public
+# ---------------------------------------------------------------------------
+
+def build_graph(show: bool = True) -> tuple[
+    nx.Graph,
+    list[list[str]],
+    dict[str, int],
+    list[tuple[str, str]],
+]:
+    """
+    Construit le graphe, détecte cliques et ponts, affiche si demandé.
+
+    Paramètres
+    ----------
+    show : bool
+        Si True, affiche le graphe matplotlib.
+
+    Retourne
+    --------
+    G               : graphe NetworkX pondéré
+    grandes_cliques : liste des cliques de taille ≥ 3
+    id_clique       : artiste → numéro de clique
+    ponts           : arêtes inter-cliques
+    """
+    G = construire_graphe()
+    grandes_cliques, id_clique, couleur_nœud = detecter_cliques(G)
+    ponts = detecter_ponts(G, id_clique)
+
+    if show:
+        dessiner_graphe(G, grandes_cliques, couleur_nœud)
+
+    return G, grandes_cliques, id_clique, ponts
+
 
 if __name__ == "__main__":
-    G, big_cliques, id_clique, ponts = build_graph(show=True)
+    build_graph(show=True)
