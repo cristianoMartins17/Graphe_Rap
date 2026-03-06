@@ -15,10 +15,6 @@ Ce projet a été réalisé dans le cadre d’un projet universitaire donné par
 
 ## Structure du projet
 
-├── graph_artistes.py
-├── meta_graphe.py
-└── README.md
-
 | Fichier             | Description                                              |
 | ------------------- | -------------------------------------------------------- |
 | `graph_artistes.py` | Construction et visualisation du graphe des artistes     |
