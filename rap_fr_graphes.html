@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rap FR — Graphe des featurings</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+
+  <style>
+    :root {
+      --bg:        #0a0a0a;
+      --surface:   #111111;
+      --border:    #1f1f1f;
+      --accent:    #c8f135;   /* vert acide — rappelle l'encre sur flyer rap */
+      --accent2:   #ff3c3c;   /* rouge pour top collabs */
+      --text:      #e8e8e8;
+      --muted:     #555;
+      --font-title: 'Bebas Neue', sans-serif;
+      --font-body:  'DM Mono', monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── HEADER ── */
+    header {
+      padding: 2.5rem 3rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-end;
+      gap: 2rem;
+    }
+    header h1 {
+      font-family: var(--font-title);
+      font-size: clamp(2.2rem, 4vw, 3.8rem);
+      letter-spacing: 0.04em;
+      color: var(--accent);
+      line-height: 1;
+    }
+    header p {
+      font-size: 0.75rem;
+      color: var(--muted);
+      max-width: 380px;
+      line-height: 1.5;
+      padding-bottom: 0.25rem;
+    }
+
+    /* ── TABS ── */
+    nav.tabs {
+      display: flex;
+      gap: 0;
+      padding: 0 3rem;
+      border-bottom: 1px solid var(--border);
+    }
+    nav.tabs button {
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--muted);
+      font-family: var(--font-title);
+      font-size: 1.3rem;
+      letter-spacing: 0.06em;
+      padding: 0.9rem 2rem 0.7rem;
+      cursor: pointer;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    nav.tabs button:hover { color: var(--text); }
+    nav.tabs button.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    /* ── LAYOUT ── */
+    .view { display: none; }
+    .view.active { display: flex; gap: 0; height: calc(100vh - 130px); }
+
+    /* ── CANVAS ── */
+    .canvas-wrap {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      background: radial-gradient(ellipse at 50% 50%, #141414 0%, #0a0a0a 100%);
+    }
+    svg.graph {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      width: 280px;
+      flex-shrink: 0;
+      border-left: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 1.5rem 1.2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+    }
+    .sidebar::-webkit-scrollbar { width: 4px; }
+    .sidebar::-webkit-scrollbar-track { background: transparent; }
+    .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .stat-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 1rem;
+    }
+    .stat-box .label {
+      font-size: 0.6rem;
+      color: var(--muted);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 0.3rem;
+    }
+    .stat-box .value {
+      font-family: var(--font-title);
+      font-size: 2rem;
+      color: var(--accent);
+      line-height: 1;
+    }
+    .stat-box .sub {
+      font-size: 0.65rem;
+      color: var(--muted);
+      margin-top: 0.2rem;
+    }
+
+    .section-title {
+      font-size: 0.6rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* Légende cliques */
+    .clique-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #1a1a1a;
+      cursor: pointer;
+      transition: background 0.15s;
+      border-radius: 2px;
+    }
+    .clique-item:hover { background: #161616; }
+    .clique-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 3px;
+    }
+    .clique-label {
+      font-size: 0.65rem;
+      line-height: 1.4;
+      color: var(--text);
+    }
+    .clique-label strong {
+      display: block;
+      font-size: 0.7rem;
+      color: var(--accent);
+    }
+
+    /* Légende arêtes */
+    .edge-legend { display: flex; flex-direction: column; gap: 0.5rem; }
+    .edge-legend-item { display: flex; align-items: center; gap: 0.6rem; font-size: 0.65rem; color: var(--muted); }
+    .edge-line { height: 2px; width: 28px; flex-shrink: 0; }
+
+    /* Tooltip */
+    #tooltip {
+      position: fixed;
+      pointer-events: none;
+      background: #1a1a1a;
+      border: 1px solid var(--accent);
+      padding: 0.6rem 0.9rem;
+      font-size: 0.7rem;
+      line-height: 1.6;
+      max-width: 220px;
+      z-index: 100;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    #tooltip.show { opacity: 1; }
+    #tooltip strong { color: var(--accent); display: block; margin-bottom: 0.2rem; }
+
+    /* Nœuds et arêtes SVG */
+    .node circle {
+      stroke: #0a0a0a;
+      stroke-width: 1.5px;
+      transition: r 0.15s, opacity 0.2s;
+    }
+    .node text {
+      font-family: var(--font-body);
+      font-size: 9px;
+      fill: #ccc;
+      pointer-events: none;
+      dominant-baseline: middle;
+      text-anchor: middle;
+    }
+    .node:hover circle { stroke: var(--accent); stroke-width: 2.5px; }
+
+    line.edge {
+      transition: opacity 0.2s;
+    }
+
+    /* Zoom hint */
+    .zoom-hint {
+      position: absolute;
+      bottom: 1rem;
+      right: 1rem;
+      font-size: 0.6rem;
+      color: var(--muted);
+      pointer-events: none;
+    }
+
+    /* ── ANIMATIONS ── */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .node { animation: fadeIn 0.4s ease both; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>RAP FR<br>FEATURINGS</h1>
+  <p>Cartographie des collaborations du rap francophone.<br>
+     Nœuds colorés par clique · Épaisseur = nombre de feats · Cliquez pour explorer.</p>
+</header>
+
+<nav class="tabs">
+  <button class="active" onclick="switchTab('graph', this)">GRAPHE PRINCIPAL</button>
+  <button onclick="switchTab('meta', this)">MÉTA-GRAPHE DES CLIQUES</button>
+</nav>
+
+<!-- GRAPHE PRINCIPAL -->
+<div id="view-graph" class="view active">
+  <div class="canvas-wrap" id="canvas-graph">
+    <svg class="graph" id="svg-graph"></svg>
+    <div class="zoom-hint">scroll pour zoomer · drag pour déplacer</div>
+  </div>
+  <div class="sidebar" id="sidebar-graph"></div>
+</div>
+
+<!-- MÉTA-GRAPHE -->
+<div id="view-meta" class="view">
+  <div class="canvas-wrap" id="canvas-meta">
+    <svg class="graph" id="svg-meta"></svg>
+    <div class="zoom-hint">scroll pour zoomer · drag pour déplacer</div>
+  </div>
+  <div class="sidebar" id="sidebar-meta"></div>
+</div>
+
+<div id="tooltip"></div>
+
+<script>
+// ═══════════════════════════════════════
+//  DONNÉES
+// ═══════════════════════════════════════
+const GRAPH = {"nodes": [{"id": "Alpha Wann", "x": 1.0, "y": 4.806826214091698e-09, "clique": 11, "color": "#228B22"}, {"id": "Angèle", "x": 0.9795299171442066, "y": 0.20129852571922954, "clique": 1, "color": "#006400"}, {"id": "Booba", "x": 0.9189578290955861, "y": 0.3943558699877847, "clique": null, "color": "#87CEEB"}, {"id": "Damso", "x": 0.8207634679023507, "y": 0.571268208358492, "clique": 1, "color": "#006400"}, {"id": "Di-Meh", "x": 0.6889668688502172, "y": 0.7247928463002992, "clique": 9, "color": "#6B8E23"}, {"id": "Disiz", "x": 0.5289639808513459, "y": 0.8486442653759263, "clique": 10, "color": "#006400"}, {"id": "Orelsan", "x": 0.3473052947926072, "y": 0.9377521368491473, "clique": 1, "color": "#006400"}, {"id": "Freeze Corleone", "x": 0.15142777164444846, "y": 0.9884683584193867, "clique": 16, "color": "#008080"}, {"id": "Gazo", "x": -0.05064923063585354, "y": 0.998716542671518, "clique": 1, "color": "#006400"}, {"id": "Hamza", "x": -0.2506525277100562, "y": 0.9680771325090007, "clique": 2, "color": "#228B22"}, {"id": "Josman", "x": -0.4403941698823452, "y": 0.8978045076870119, "clique": 2, "color": "#228B22"}, {"id": "Kaaris", "x": -0.6121060923789943, "y": 0.7907756652130535, "clique": null, "color": "#87CEEB"}, {"id": "Kalash Criminel", "x": -0.75875807632741, "y": 0.6513725597776148, "clique": 3, "color": "#2E8B57"}, {"id": "Koba LaD", "x": -0.874346563063744, "y": 0.48530203812146133, "clique": null, "color": "#87CEEB"}, {"id": "Laylow", "x": -0.9541392417938754, "y": 0.2993631126990195, "clique": 2, "color": "#228B22"}, {"id": "Leto", "x": -0.9948693607362894, "y": 0.10116826525926137, "clique": 5, "color": "#66CDAA"}, {"id": "Lomepal", "x": -0.9948693011316443, "y": -0.10116843445954411, "clique": null, "color": "#87CEEB"}, {"id": "Makala", "x": -0.9541393013985205, "y": -0.29936304348072196, "clique": 9, "color": "#6B8E23"}, {"id": "Mister V", "x": -0.874346622668389, "y": -0.48530190929851874, "clique": null, "color": "#87CEEB"}, {"id": "Nekfeu", "x": -0.7587581359320551, "y": -0.6513724905593173, "clique": 11, "color": "#228B22"}, {"id": "Ziak", "x": -0.6121059135650592, "y": -0.7907757748086913, "clique": null, "color": "#87CEEB"}, {"id": "PLK", "x": -0.4403940506730551, "y": -0.8978046172826497, "clique": 5, "color": "#66CDAA"}, {"id": "Roméo Elvis", "x": -0.25065237869844353, "y": -0.9680771824999934, "clique": null, "color": "#87CEEB"}, {"id": "SCH", "x": -0.05064893633791858, "y": -0.9987165330578657, "clique": 15, "color": "#20B2AA"}, {"id": "SDM", "x": 0.15142759283051327, "y": -0.9884683488057344, "clique": null, "color": "#87CEEB"}, {"id": "Slimka", "x": 0.34730511597867203, "y": -0.93775218684014, "clique": 9, "color": "#6B8E23"}, {"id": "Tiakola", "x": 0.5289639212467008, "y": -0.848644315366919, "clique": 4, "color": "#3CB371"}, {"id": "Vald", "x": 0.6889668688502172, "y": -0.7247928366866468, "clique": null, "color": "#87CEEB"}, {"id": "Werenoi", "x": 0.8207634679023507, "y": -0.5712681987448397, "clique": 4, "color": "#3CB371"}, {"id": "Ninho", "x": 0.9189578290955861, "y": -0.3943557709671647, "clique": 3, "color": "#2E8B57"}, {"id": "Zola", "x": 0.9795299767488517, "y": -0.201298396896287, "clique": null, "color": "#87CEEB"}], "edges": [{"source": "Alpha Wann", "target": "Nekfeu", "weight": 9, "is_top": false, "is_pont": false}, {"source": "Alpha Wann", "target": "Freeze Corleone", "weight": 2, "is_top": false, "is_pont": true}, {"source": "Alpha Wann", "target": "Laylow", "weight": 2, "is_top": false, "is_pont": true}, {"source": "Angèle", "target": "Damso", "weight": 3, "is_top": false, "is_pont": false}, {"source": "Angèle", "target": "Orelsan", "weight": 1, "is_top": false, "is_pont": false}, {"source": "Angèle", "target": "Gazo", "weight": 1, "is_top": false, "is_pont": false}, {"source": "Angèle", "target": "Tiakola", "weight": 1, "is_top": false, "is_pont": true}, {"source": "Angèle", "target": "Roméo Elvis", "weight": 2, "is_top": false, "is_pont": false}, {"source": "Booba", "target": "Damso", "weight": 3, "is_top": false, "is_pont": false}, {"source": "Booba", "target": "Kaaris", "weight": 2, "is_top": false, "is_pont": false}, {"source": "Booba", "target": "SDM", "weight": 5, "is_top": false, "is_pont": false}, {"source": "Damso", "target": "Disiz", "weight": 1, "is_top": false, "is_pont": true}, {"source": "Damso", "target": "Hamza", "weight": 3, "is_top": false, "is_pont": true}, {"source": "Damso", "target": "Laylow", "weight": 1, "is_top": false, "is_pont": true}, {"source": "Damso", "target": "Nekfeu", "weight": 1, "is_top": false, "is_pont": true}, {"source": "Damso", "target": "Orelsan", "weight": 1, "is_top": false, "is_pont": false}, {"source": "Damso", "target": "Gazo", "weight": 2, "is_top": false, "is_pont": false}, {"source": "Damso", "target": "Josman", "weight": 1, "is_top": false, "is_pont": true}, {"source": "Damso", "target": "Kalash Criminel", "weight": 1, "is_top": false, "is_pont": true}, {"source": "Damso", "target": "Ninho", "weight": 1, "is_top": false, "is_pont": true}, {"source": "Di-Meh", "target": "Makala", "weight": 3, "is_top": false, "is_pont": false}, {"source": "Di-Meh", "target": "Slimka", "weight": 11, "is_top": false, "is_pont": false}, {"source": "Di-Meh", "target": "Laylow", "weight": 1, "is_top": false, "is_pont": true}, {"source": "Di-Meh", "target": "Roméo Elvis", "weight": 1, "is_top": false, "is_pont": false}, {"source": "Disiz", "target": "Orelsan", "weight": 1, "is_top": false, "is_pont": true}, {"source": "Orelsan", "target": "Gazo", "weight": 1, "is_top": false, "is_pont": false}, {"source": "Orelsan", "target": "Lomepal", "weight": 1, "is_top": false, "is_pont": false}, {"source": "Orelsan", "target": "Nekfeu", "weight": 1, "is_top": false, "is_pont": true}, {"source": "Freeze Corleone", "target": "Kalash Criminel", "weight": 3, "is_top": false, "is_pont": true}, {"source": "Freeze Corleone", "target": "Ninho", "weight": 1, "is_top": false, "is_pont": true}, {"source": "Gazo", "target": "Hamza", "weight": 1, "is_top": false, "is_pont": true}, {"source": "Gazo", "target": "Ninho", "weight": 2, "is_top": false, "is_pont": true}, {"source": "Gazo", "target": "Tiakola", "weight": 13, "is_top": true, "is_pont": true}, {"source": "Gazo", "target": "Werenoi", "weight": 1, "is_top": false, "is_pont": true}, {"source": "Gazo", "target": "SCH", "weight": 1, "is_top": false, "is_pont": true}, {"source": "Gazo", "target": "PLK", "weight": 1, "is_top": false, "is_pont": true}, {"source": "Hamza", "target": "Josman", "weight": 2, "is_top": false, "is_pont": false}, {"source": "Hamza", "target": "Laylow", "weight": 1, "is_top": false, "is_pont": false}, {"source": "Hamza", "target": "Ninho", "weight": 1, "is_top": false, "is_pont": true}, {"source": "Hamza", "target": "PLK", "weight": 2, "is_top": false, "is_pont": true}, {"source": "Hamza", "target": "Leto", "weight": 1, "is_top": false, "is_pont": true}, {"source": "Josman", "target": "Laylow", "weight": 1, "is_top": false, "is_pont": false}, {"source": "Josman", "target": "Kalash Criminel", "weight": 2, "is_top": false, "is_pont": true}, {"source": "Josman", "target": "Ninho", "weight": 1, "is_top": false, "is_pont": true}, {"source": "Kaaris", "target": "Kalash Criminel", "weight": 2, "is_top": false, "is_pont": false}, {"source": "Kalash Criminel", "target": "Ninho", "weight": 1, "is_top": false, "is_pont": false}, {"source": "Kalash Criminel", "target": "Ziak", "weight": 1, "is_top": false, "is_pont": false}, {"source": "Koba LaD", "target": "Ninho", "weight": 1, "is_top": false, "is_pont": false}, {"source": "Laylow", "target": "SCH", "weight": 1, "is_top": false, "is_pont": true}, {"source": "Laylow", "target": "Nekfeu", "weight": 1, "is_top": false, "is_pont": true}, {"source": "Leto", "target": "Ninho", "weight": 1, "is_top": false, "is_pont": true}, {"source": "Leto", "target": "PLK", "weight": 1, "is_top": false, "is_pont": false}, {"source": "Lomepal", "target": "Roméo Elvis", "weight": 2, "is_top": false, "is_pont": false}, {"source": "Makala", "target": "Slimka", "weight": 2, "is_top": false, "is_pont": false}, {"source": "Mister V", "target": "PLK", "weight": 1, "is_top": false, "is_pont": false}, {"source": "PLK", "target": "SCH", "weight": 1, "is_top": false, "is_pont": true}, {"source": "PLK", "target": "Ninho", "weight": 2, "is_top": false, "is_pont": true}, {"source": "SDM", "target": "Tiakola", "weight": 1, "is_top": false, "is_pont": false}, {"source": "Tiakola", "target": "Ninho", "weight": 1, "is_top": false, "is_pont": true}, {"source": "Tiakola", "target": "Werenoi", "weight": 1, "is_top": false, "is_pont": false}, {"source": "Werenoi", "target": "Ninho", "weight": 1, "is_top": false, "is_pont": true}], "cliques": [{"id": 1, "artistes": ["Angèle", "Damso", "Gazo", "Orelsan"], "taille": 4, "color": "#006400"}, {"id": 2, "artistes": ["Damso", "Hamza", "Josman", "Laylow"], "taille": 4, "color": "#228B22"}, {"id": 3, "artistes": ["Damso", "Josman", "Kalash Criminel", "Ninho"], "taille": 4, "color": "#2E8B57"}, {"id": 4, "artistes": ["Gazo", "Ninho", "Tiakola", "Werenoi"], "taille": 4, "color": "#3CB371"}, {"id": 5, "artistes": ["Hamza", "Leto", "Ninho", "PLK"], "taille": 4, "color": "#66CDAA"}, {"id": 6, "artistes": ["Gazo", "Hamza", "Ninho", "PLK"], "taille": 4, "color": "#20B2AA"}, {"id": 7, "artistes": ["Damso", "Hamza", "Josman", "Ninho"], "taille": 4, "color": "#008080"}, {"id": 8, "artistes": ["Damso", "Gazo", "Hamza", "Ninho"], "taille": 4, "color": "#9ACD32"}, {"id": 9, "artistes": ["Di-Meh", "Makala", "Slimka"], "taille": 3, "color": "#6B8E23"}, {"id": 10, "artistes": ["Damso", "Disiz", "Orelsan"], "taille": 3, "color": "#006400"}, {"id": 11, "artistes": ["Alpha Wann", "Laylow", "Nekfeu"], "taille": 3, "color": "#228B22"}, {"id": 12, "artistes": ["Angèle", "Gazo", "Tiakola"], "taille": 3, "color": "#2E8B57"}, {"id": 13, "artistes": ["Damso", "Laylow", "Nekfeu"], "taille": 3, "color": "#3CB371"}, {"id": 14, "artistes": ["Damso", "Nekfeu", "Orelsan"], "taille": 3, "color": "#66CDAA"}, {"id": 15, "artistes": ["Gazo", "PLK", "SCH"], "taille": 3, "color": "#20B2AA"}, {"id": 16, "artistes": ["Freeze Corleone", "Kalash Criminel", "Ninho"], "taille": 3, "color": "#008080"}], "poids_max": 13};
+const META  = {"nodes": [{"id": "C1", "x": 0.9999999999999996, "y": -5.7119473269171585e-09, "taille": 3, "artistes": ["Di-Meh", "Makala", "Slimka"]}, {"id": "C2", "x": 0.9238795046385923, "y": 0.3826834480462462, "taille": 3, "artistes": ["Damso", "Disiz", "Orelsan"]}, {"id": "C3", "x": 0.7071067707579207, "y": 0.7071067593340264, "taille": 3, "artistes": ["Alpha Wann", "Laylow", "Nekfeu"]}, {"id": "C4", "x": 0.38268345947014054, "y": 0.923879493214698, "taille": 4, "artistes": ["Angèle", "Damso", "Gazo", "Orelsan"]}, {"id": "C5", "x": -3.7999441043210525e-08, "y": 0.9999999885761053, "taille": 3, "artistes": ["Angèle", "Gazo", "Tiakola"]}, {"id": "C6", "x": -0.3826833884416021, "y": 0.9238795528193424, "taille": 4, "artistes": ["Damso", "Hamza", "Josman", "Laylow"]}, {"id": "C7", "x": -0.7071067593340268, "y": 0.7071067593340264, "taille": 3, "artistes": ["Damso", "Laylow", "Nekfeu"]}, {"id": "C8", "x": -0.9238794932146983, "y": 0.38268347784856843, "taille": 3, "artistes": ["Damso", "Nekfeu", "Orelsan"]}, {"id": "C9", "x": -0.9999999885761056, "y": -9.313472340103871e-08, "taille": 3, "artistes": ["Gazo", "PLK", "SCH"]}, {"id": "C10", "x": -0.9238794932146983, "y": -0.3826834594701409, "taille": 3, "artistes": ["Freeze Corleone", "Kalash Criminel", "Ninho"]}, {"id": "C11", "x": -0.7071068189386712, "y": -0.7071067111532767, "taille": 4, "artistes": ["Damso", "Josman", "Kalash Criminel", "Ninho"]}, {"id": "C12", "x": -0.3826835672555354, "y": -0.9238794450339481, "taille": 4, "artistes": ["Gazo", "Ninho", "Tiakola", "Werenoi"]}, {"id": "C13", "x": 1.7636827564239016e-08, "y": -1.0, "taille": 4, "artistes": ["Hamza", "Leto", "Ninho", "PLK"]}, {"id": "C14", "x": 0.38268357867942937, "y": -0.9238794450339481, "taille": 4, "artistes": ["Gazo", "Hamza", "Ninho", "PLK"]}, {"id": "C15", "x": 0.707106651548632, "y": -0.7071068899672099, "taille": 4, "artistes": ["Damso", "Hamza", "Josman", "Ninho"]}, {"id": "C16", "x": 0.9238795642432367, "y": -0.38268342966781865, "taille": 4, "artistes": ["Damso", "Gazo", "Hamza", "Ninho"]}], "edges": [{"source": "C1", "target": "C4"}, {"source": "C1", "target": "C10"}, {"source": "C1", "target": "C2"}, {"source": "C1", "target": "C11"}, {"source": "C1", "target": "C3"}, {"source": "C1", "target": "C15"}, {"source": "C1", "target": "C5"}, {"source": "C2", "target": "C11"}, {"source": "C2", "target": "C9"}, {"source": "C2", "target": "C3"}, {"source": "C2", "target": "C5"}, {"source": "C2", "target": "C15"}, {"source": "C3", "target": "C16"}, {"source": "C3", "target": "C5"}, {"source": "C3", "target": "C4"}, {"source": "C5", "target": "C15"}, {"source": "C11", "target": "C16"}], "composition": {"C1": ["Di-Meh", "Makala", "Slimka"], "C2": ["Damso", "Disiz", "Orelsan"], "C3": ["Alpha Wann", "Laylow", "Nekfeu"], "C4": ["Angèle", "Damso", "Gazo", "Orelsan"], "C5": ["Angèle", "Gazo", "Tiakola"], "C6": ["Damso", "Hamza", "Josman", "Laylow"], "C7": ["Damso", "Laylow", "Nekfeu"], "C8": ["Damso", "Nekfeu", "Orelsan"], "C9": ["Gazo", "PLK", "SCH"], "C10": ["Freeze Corleone", "Kalash Criminel", "Ninho"], "C11": ["Damso", "Josman", "Kalash Criminel", "Ninho"], "C12": ["Gazo", "Ninho", "Tiakola", "Werenoi"], "C13": ["Hamza", "Leto", "Ninho", "PLK"], "C14": ["Gazo", "Hamza", "Ninho", "PLK"], "C15": ["Damso", "Hamza", "Josman", "Ninho"], "C16": ["Damso", "Gazo", "Hamza", "Ninho"]}};
+
+// ═══════════════════════════════════════
+//  TOOLTIP
+// ═══════════════════════════════════════
+const tooltip = document.getElementById('tooltip');
+function showTip(html, e) {
+  tooltip.innerHTML = html;
+  tooltip.classList.add('show');
+  moveTip(e);
+}
+function moveTip(e) {
+  let x = e.clientX + 14, y = e.clientY + 14;
+  if (x + 240 > window.innerWidth) x = e.clientX - 240;
+  tooltip.style.left = x + 'px';
+  tooltip.style.top  = y + 'px';
+}
+function hideTip() { tooltip.classList.remove('show'); }
+
+// ═══════════════════════════════════════
+//  TABS
+// ═══════════════════════════════════════
+const _rendered = { graph: false, meta: false };
+
+function switchTab(tab, btn) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('nav.tabs button').forEach(b => b.classList.remove('active'));
+  document.getElementById('view-' + tab).classList.add('active');
+  btn.classList.add('active');
+  if (!_rendered[tab]) {
+    _rendered[tab] = true;
+    if (tab === 'graph') drawGraph();
+    if (tab === 'meta')  drawMeta();
+  }
+}
+
+// ═══════════════════════════════════════
+//  GRAPHE PRINCIPAL
+//  viewBox="-1.2 -1.2 2.4 2.4" → les coords Python [-1,1] sont utilisées directement
+// ═══════════════════════════════════════
+function drawGraph() {
+  const svg = d3.select('#svg-graph');
+  const VB  = 2.4;  // viewBox de -1.2 à +1.2
+  svg.attr('viewBox', `-1.2 -1.2 ${VB} ${VB}`)
+     .style('width', '100%')
+     .style('height', '100%');
+
+  const g = svg.append('g');
+  svg.call(d3.zoom()
+    .scaleExtent([0.5, 8])
+    .on('zoom', e => g.attr('transform', e.transform)));
+
+  // Index nœuds
+  const nodeMap = {};
+  GRAPH.nodes.forEach(n => nodeMap[n.id] = n);
+
+  // ── Arêtes ──
+  g.append('g').selectAll('line')
+    .data(GRAPH.edges)
+    .join('line')
+      .attr('x1', d => nodeMap[d.source].x)
+      .attr('y1', d => nodeMap[d.source].y)
+      .attr('x2', d => nodeMap[d.target].x)
+      .attr('y2', d => nodeMap[d.target].y)
+      .attr('stroke',         d => d.is_top ? '#ff3c3c' : d.is_pont ? '#c8f135' : '#444')
+      .attr('stroke-width',   d => (0.004 + d.weight * 0.003))
+      .attr('stroke-opacity', d => d.is_top ? 0.95 : d.is_pont ? 0.75 : 0.5)
+      .on('mouseover', function(event, d) {
+        d3.select(this).attr('stroke-opacity', 1).attr('stroke-width', 0.012);
+        showTip(`<strong>${d.source} × ${d.target}</strong>${d.weight} feat${d.weight>1?'s':''}
+          ${d.is_top?'<br><span style="color:#ff3c3c">⭐ Top collab</span>':''}
+          ${d.is_pont?'<br><span style="color:#c8f135">🔗 Pont inter-cliques</span>':''}`, event);
+      })
+      .on('mousemove', moveTip)
+      .on('mouseout', function(event, d) {
+        hideTip();
+        d3.select(this)
+          .attr('stroke-opacity', d.is_top ? 0.95 : d.is_pont ? 0.75 : 0.5)
+          .attr('stroke-width', 0.004 + d.weight * 0.003);
+      });
+
+  // ── Nœuds ──
+  const R = 0.055;
+  const nodeG = g.append('g').selectAll('g')
+    .data(GRAPH.nodes)
+    .join('g')
+      .attr('transform', d => `translate(${d.x},${d.y})`);
+
+  nodeG.append('circle')
+    .attr('r', R)
+    .attr('fill', d => d.color)
+    .attr('stroke', '#0a0a0a')
+    .attr('stroke-width', 0.006);
+
+  nodeG.append('text')
+    .text(d => d.id.split(' ')[0])
+    .attr('y', R + 0.055)
+    .attr('text-anchor', 'middle')
+    .attr('fill', '#aaa')
+    .attr('font-size', '0.055px')
+    .attr('font-family', 'DM Mono, monospace');
+
+  nodeG
+    .on('mouseover', function(event, d) {
+      d3.select(this).select('circle').attr('r', R * 1.4).attr('stroke', '#c8f135');
+      const collabs = GRAPH.edges
+        .filter(e => e.source === d.id || e.target === d.id)
+        .sort((a,b) => b.weight - a.weight).slice(0,5)
+        .map(e => `${e.source===d.id?e.target:e.source} (${e.weight})`).join('<br>');
+      const cInfo = d.clique
+        ? `<span style="color:${d.color}">● Clique C${d.clique}</span>`
+        : `<span style="color:#87ceeb">● Hors clique</span>`;
+      showTip(`<strong>${d.id}</strong>${cInfo}<br><br>Collabs :<br>${collabs}`, event);
+    })
+    .on('mousemove', moveTip)
+    .on('mouseout', function() {
+      hideTip();
+      d3.select(this).select('circle').attr('r', R).attr('stroke', '#0a0a0a');
+    });
+
+  // ── Sidebar ──
+  const deg = n => GRAPH.edges.filter(e => e.source===n.id||e.target===n.id).length;
+  const topEdge = GRAPH.edges.find(e => e.is_top);
+  document.getElementById('sidebar-graph').innerHTML = `
+    <div class="section-title">STATISTIQUES</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem">
+      <div class="stat-box"><div class="label">Artistes</div><div class="value">${GRAPH.nodes.length}</div></div>
+      <div class="stat-box"><div class="label">Featurings</div><div class="value">${GRAPH.edges.length}</div></div>
+      <div class="stat-box"><div class="label">Max feats</div><div class="value">${GRAPH.poids_max}</div>
+        <div class="sub">${topEdge.source} × ${topEdge.target}</div></div>
+      <div class="stat-box"><div class="label">Cliques</div><div class="value">${GRAPH.cliques.length}</div><div class="sub">taille ≥ 3</div></div>
+    </div>
+    <div class="section-title" style="margin-top:.5rem">TOP ARTISTES</div>
+    ${[...GRAPH.nodes].sort((a,b)=>deg(b)-deg(a)).slice(0,8).map((n,i)=>`
+      <div style="display:flex;justify-content:space-between;padding:.3rem 0;border-bottom:1px solid #1a1a1a;font-size:.68rem">
+        <span style="color:${i<3?'var(--accent)':'var(--muted)'};width:18px">${i+1}</span>
+        <span style="flex:1">${n.id}</span>
+        <span style="color:var(--muted)">${deg(n)} liens</span>
+      </div>`).join('')}
+    <div class="section-title" style="margin-top:.5rem">LÉGENDE ARÊTES</div>
+    <div class="edge-legend">
+      <div class="edge-legend-item"><div class="edge-line" style="background:#ff3c3c;height:3px"></div>Top collab (${GRAPH.poids_max} feats)</div>
+      <div class="edge-legend-item"><div class="edge-line" style="background:#c8f135"></div>Pont inter-cliques</div>
+      <div class="edge-legend-item"><div class="edge-line" style="background:#444;height:1px"></div>Featuring standard</div>
+    </div>
+    <div class="section-title" style="margin-top:.5rem">CLIQUES</div>
+    ${GRAPH.cliques.map(c=>`
+      <div class="clique-item" onclick="highlightClique(${c.id})">
+        <div class="clique-dot" style="background:${c.color}"></div>
+        <div class="clique-label"><strong>C${c.id} — ${c.taille} artistes</strong>${c.artistes.join(', ')}</div>
+      </div>`).join('')}`;
+}
+
+function highlightClique(id) {
+  d3.selectAll('#svg-graph circle')
+    .attr('opacity', d => d.clique === id ? 1 : 0.1);
+  d3.selectAll('#svg-graph line')
+    .attr('stroke-opacity', d => {
+      const s = GRAPH.nodes.find(n=>n.id===d.source);
+      const t = GRAPH.nodes.find(n=>n.id===d.target);
+      return (s?.clique===id||t?.clique===id) ? 0.9 : 0.04;
+    });
+  setTimeout(() => {
+    d3.selectAll('#svg-graph circle').attr('opacity', 1);
+    d3.selectAll('#svg-graph line').attr('stroke-opacity', d =>
+      d.is_top ? 0.95 : d.is_pont ? 0.75 : 0.5);
+  }, 2500);
+}
+
+// ═══════════════════════════════════════
+//  MÉTA-GRAPHE
+// ═══════════════════════════════════════
+function drawMeta() {
+  const svg = d3.select('#svg-meta');
+  svg.attr('viewBox', '-1.3 -1.3 2.6 2.6')
+     .style('width', '100%')
+     .style('height', '100%');
+
+  const g = svg.append('g');
+  svg.call(d3.zoom()
+    .scaleExtent([0.5, 8])
+    .on('zoom', e => g.attr('transform', e.transform)));
+
+  const nodeMap = {};
+  META.nodes.forEach(n => nodeMap[n.id] = n);
+
+  const rScale = d3.scaleLinear()
+    .domain(d3.extent(META.nodes, d => d.taille))
+    .range([0.06, 0.13]);
+
+  // Arêtes
+  g.append('g').selectAll('line')
+    .data(META.edges)
+    .join('line')
+      .attr('x1', d => nodeMap[d.source].x)
+      .attr('y1', d => nodeMap[d.source].y)
+      .attr('x2', d => nodeMap[d.target].x)
+      .attr('y2', d => nodeMap[d.target].y)
+      .attr('stroke', '#ff3c3c')
+      .attr('stroke-width', 0.008)
+      .attr('stroke-opacity', 0.7)
+      .on('mouseover', function(event, d) {
+        d3.select(this).attr('stroke-opacity',1).attr('stroke-width',0.014);
+        showTip(`<strong>Pont</strong>${d.source} ↔ ${d.target}`, event);
+      })
+      .on('mousemove', moveTip)
+      .on('mouseout', function() {
+        hideTip();
+        d3.select(this).attr('stroke-opacity',0.7).attr('stroke-width',0.008);
+      });
+
+  // Nœuds
+  const nodeG = g.append('g').selectAll('g')
+    .data(META.nodes)
+    .join('g')
+      .attr('transform', d => `translate(${d.x},${d.y})`);
+
+  nodeG.append('circle')
+    .attr('r', d => rScale(d.taille))
+    .attr('fill', '#2e8b57')
+    .attr('stroke', '#0a0a0a')
+    .attr('stroke-width', 0.008);
+
+  nodeG.append('text')
+    .text(d => d.id)
+    .attr('text-anchor', 'middle')
+    .attr('dominant-baseline', 'middle')
+    .attr('fill', 'white')
+    .attr('font-size', '0.065px')
+    .attr('font-weight', 'bold')
+    .attr('font-family', 'DM Mono, monospace');
+
+  nodeG.append('text')
+    .text(d => `${d.taille} artistes`)
+    .attr('y', d => rScale(d.taille) + 0.055)
+    .attr('text-anchor', 'middle')
+    .attr('fill', '#777')
+    .attr('font-size', '0.045px')
+    .attr('font-family', 'DM Mono, monospace');
+
+  nodeG
+    .on('mouseover', function(event, d) {
+      d3.select(this).select('circle').attr('stroke','#c8f135').attr('stroke-width',0.012);
+      showTip(`<strong>${d.id}</strong>${d.taille} artistes<br><br>${d.artistes.join('<br>')}`, event);
+    })
+    .on('mousemove', moveTip)
+    .on('mouseout', function() {
+      hideTip();
+      d3.select(this).select('circle').attr('stroke','#0a0a0a').attr('stroke-width',0.008);
+    });
+
+  // Sidebar
+  document.getElementById('sidebar-meta').innerHTML = `
+    <div class="section-title">STATISTIQUES</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem">
+      <div class="stat-box"><div class="label">Cliques</div><div class="value">${META.nodes.length}</div><div class="sub">méta-nœuds</div></div>
+      <div class="stat-box"><div class="label">Ponts</div><div class="value">${META.edges.length}</div><div class="sub">inter-cliques</div></div>
+    </div>
+    <div class="section-title" style="margin-top:.5rem">CLIQUES PAR TAILLE</div>
+    ${[...META.nodes].sort((a,b)=>b.taille-a.taille).map(n => {
+      const ponts = META.edges.filter(e=>e.source===n.id||e.target===n.id).length;
+      return `<div class="clique-item" style="cursor:default">
+        <div class="clique-dot" style="background:#2e8b57;width:${6+n.taille*3}px;height:${6+n.taille*3}px"></div>
+        <div class="clique-label"><strong>${n.id} — ${n.taille} artistes · ${ponts} pont${ponts>1?'s':''}</strong>${n.artistes.join(', ')}</div>
+      </div>`;
+    }).join('')}
+    <div class="section-title" style="margin-top:.5rem">LÉGENDE</div>
+    <div class="edge-legend">
+      <div class="edge-legend-item"><div style="width:22px;height:22px;border-radius:50%;background:#2e8b57;flex-shrink:0"></div>Clique (taille ∝ rayon)</div>
+      <div class="edge-legend-item"><div class="edge-line" style="background:#ff3c3c;height:3px"></div>Pont inter-clique</div>
+    </div>`;
+}
+
+// ═══════════════════════════════════════
+//  INIT — graphe principal au chargement
+// ═══════════════════════════════════════
+window.addEventListener('load', () => {
+  _rendered.graph = true;
+  drawGraph();
+});
+</script>
+</body>
+</html>
