@@ -225,6 +225,79 @@
       pointer-events: none;
     }
 
+
+    /* ── DIJKSTRA ── */
+    .dijkstra-btn {
+      width: 100%;
+      background: none;
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      font-family: var(--font-title);
+      font-size: 1.1rem;
+      letter-spacing: 0.1em;
+      padding: 0.7rem 1rem;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    .dijkstra-btn:hover {
+      background: var(--accent);
+      color: #0a0a0a;
+    }
+    .dijkstra-btn.running {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .dijkstra-result {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid #a855f7;
+      padding: 0.9rem;
+      font-size: 0.65rem;
+      line-height: 1.7;
+      display: none;
+    }
+    .dijkstra-result.show { display: block; }
+    .dijkstra-result .dij-title {
+      font-family: var(--font-title);
+      font-size: 1rem;
+      color: #a855f7;
+      margin-bottom: 0.5rem;
+      letter-spacing: 0.05em;
+    }
+    .dijkstra-result .dij-endpoints {
+      color: var(--accent);
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+    .dijkstra-result .dij-path {
+      color: var(--muted);
+      margin-top: 0.4rem;
+    }
+    .dijkstra-result .dij-path span {
+      color: var(--text);
+    }
+    .dijkstra-reset {
+      font-size: 0.6rem;
+      color: var(--muted);
+      cursor: pointer;
+      text-decoration: underline;
+      margin-top: 0.4rem;
+      display: inline-block;
+    }
+    .dijkstra-reset:hover { color: var(--text); }
+
+    @keyframes pathPulse {
+      0%, 100% { stroke-opacity: 0.9; }
+      50%       { stroke-opacity: 0.3; }
+    }
+    line.dijkstra-path {
+      animation: pathPulse 1.4s ease-in-out infinite;
+    }
+
     /* ── ANIMATIONS ── */
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(6px); }
@@ -305,6 +378,176 @@ function switchTab(tab, btn) {
     if (tab === 'graph') drawGraph();
     if (tab === 'meta')  drawMeta();
   }
+}
+
+
+// ═══════════════════════════════════════
+//  DIJKSTRA (non pondéré — BFS suffit,
+//  mais on implémente Dijkstra avec poids=1
+//  pour coller à la demande)
+// ═══════════════════════════════════════
+
+function buildAdjacency(nodes, edges) {
+  // Construit la liste d'adjacence {id: [{neighbor, weight}]}
+  const adj = {};
+  nodes.forEach(n => adj[n.id] = []);
+  edges.forEach(e => {
+    adj[e.source].push({ neighbor: e.target,  w: 1 });
+    adj[e.target].push({ neighbor: e.source,  w: 1 });
+  });
+  return adj;
+}
+
+function dijkstra(adj, source) {
+  // Dijkstra classique avec file de priorité (min-heap simulée)
+  // Retourne {dist: {id: distance}, prev: {id: predecessor}}
+  const dist = {}, prev = {};
+  const visited = new Set();
+
+  Object.keys(adj).forEach(id => { dist[id] = Infinity; prev[id] = null; });
+  dist[source] = 0;
+
+  // File simple (pour ~30 nœuds, O(n²) est largement suffisant)
+  while (true) {
+    // Trouver le nœud non visité avec dist minimale
+    let u = null;
+    Object.keys(dist).forEach(id => {
+      if (!visited.has(id) && (u === null || dist[id] < dist[u])) u = id;
+    });
+    if (u === null || dist[u] === Infinity) break;
+    visited.add(u);
+
+    adj[u].forEach(({ neighbor, w }) => {
+      const alt = dist[u] + w;
+      if (alt < dist[neighbor]) {
+        dist[neighbor] = alt;
+        prev[neighbor] = u;
+      }
+    });
+  }
+  return { dist, prev };
+}
+
+function reconstructPath(prev, source, target) {
+  const path = [];
+  let cur = target;
+  while (cur !== null) {
+    path.unshift(cur);
+    cur = prev[cur];
+  }
+  return path[0] === source ? path : null; // null si pas de chemin
+}
+
+function findDiameter(nodes, edges) {
+  // Cherche la paire (source, cible) maximisant la distance shortest-path
+  const adj = buildAdjacency(nodes, edges);
+  let maxDist = -1, bestSrc = null, bestTgt = null, bestPath = null;
+
+  nodes.forEach(n => {
+    const { dist, prev } = dijkstra(adj, n.id);
+    Object.keys(dist).forEach(tgt => {
+      if (tgt !== n.id && dist[tgt] !== Infinity && dist[tgt] > maxDist) {
+        maxDist  = dist[tgt];
+        bestSrc  = n.id;
+        bestTgt  = tgt;
+        bestPath = reconstructPath(prev, n.id, tgt);
+      }
+    });
+  });
+  return { src: bestSrc, tgt: bestTgt, dist: maxDist, path: bestPath };
+}
+
+// ── Affichage du chemin sur le SVG ──
+let _dijkstraActive = false;
+
+function showDiametre() {
+  if (_dijkstraActive) return;
+  _dijkstraActive = true;
+
+  const btn = document.getElementById('btn-dijkstra');
+  btn.classList.add('running');
+  btn.textContent = '⏳ Calcul en cours…';
+
+  // Petit délai pour laisser le navigateur afficher le message
+  setTimeout(() => {
+    const { src, tgt, dist, path } = findDiameter(GRAPH.nodes, GRAPH.edges);
+
+    // Effacer les arêtes normales et mettre en gris
+    d3.selectAll('#svg-graph line:not(.dijkstra-path)')
+      .attr('stroke-opacity', 0.08);
+
+    // Effacer nœuds
+    d3.selectAll('#svg-graph circle')
+      .attr('opacity', 0.15);
+
+    // Construire un set des arêtes du chemin
+    const pathEdges = new Set();
+    for (let i = 0; i < path.length - 1; i++) {
+      pathEdges.add(path[i] + '||' + path[i+1]);
+      pathEdges.add(path[i+1] + '||' + path[i]);
+    }
+
+    // Mettre en valeur les arêtes du chemin
+    d3.selectAll('#svg-graph line')
+      .filter(d => pathEdges.has(d.source + '||' + d.target))
+      .classed('dijkstra-path', true)
+      .attr('stroke', '#a855f7')
+      .attr('stroke-width', 0.018)
+      .attr('stroke-opacity', 0.9);
+
+    // Mettre en valeur les nœuds du chemin
+    d3.selectAll('#svg-graph g')
+      .filter(d => d && path.includes(d.id))
+      .select('circle')
+        .attr('opacity', 1)
+        .attr('stroke', d => d.id === src || d.id === tgt ? '#a855f7' : '#c8f135')
+        .attr('stroke-width', d => d.id === src || d.id === tgt ? 0.022 : 0.014)
+        .attr('r', d => d.id === src || d.id === tgt ? 0.08 : 0.065);
+
+    // Afficher le résultat dans la sidebar
+    const resultBox = document.getElementById('dijkstra-result');
+    resultBox.classList.add('show');
+    resultBox.innerHTML = `
+      <div class="dij-title">⬡ DIAMÈTRE DU GRAPHE</div>
+      <div class="dij-endpoints">${src} ↔ ${tgt}</div>
+      <div style="color:var(--muted);margin-top:.3rem">Distance : <span style="color:var(--accent);font-size:.85rem">${dist} sauts</span></div>
+      <div class="dij-path">Chemin :<br>
+        <span>${path.join(' → ')}</span>
+      </div>
+      <div class="dijkstra-reset" onclick="resetDijkstra()">✕ Effacer</div>
+    `;
+
+    btn.textContent = '✓ Diamètre affiché';
+    btn.style.borderColor = '#a855f7';
+    btn.style.color = '#a855f7';
+  }, 60);
+}
+
+function resetDijkstra() {
+  _dijkstraActive = false;
+
+  // Rétablir les arêtes
+  d3.selectAll('#svg-graph line')
+    .classed('dijkstra-path', false)
+    .attr('stroke', d => d.is_top ? '#ff3c3c' : d.is_pont ? '#c8f135' : '#444')
+    .attr('stroke-width', d => 0.004 + d.weight * 0.003)
+    .attr('stroke-opacity', d => d.is_top ? 0.95 : d.is_pont ? 0.75 : 0.5);
+
+  // Rétablir les nœuds
+  d3.selectAll('#svg-graph circle')
+    .attr('opacity', 1)
+    .attr('stroke', '#0a0a0a')
+    .attr('stroke-width', 0.006)
+    .attr('r', 0.055);
+
+  // Reset bouton
+  const btn = document.getElementById('btn-dijkstra');
+  btn.classList.remove('running');
+  btn.textContent = '▶ AFFICHER LE DIAMÈTRE';
+  btn.style.borderColor = '';
+  btn.style.color = '';
+
+  document.getElementById('dijkstra-result').classList.remove('show');
 }
 
 // ═══════════════════════════════════════
@@ -395,6 +638,12 @@ function drawGraph() {
   const deg = n => GRAPH.edges.filter(e => e.source===n.id||e.target===n.id).length;
   const topEdge = GRAPH.edges.find(e => e.is_top);
   document.getElementById('sidebar-graph').innerHTML = `
+
+    <div class="section-title">DIJKSTRA</div>
+    <button class="dijkstra-btn" id="btn-dijkstra" onclick="showDiametre()">
+      ▶ AFFICHER LE DIAMÈTRE
+    </button>
+    <div class="dijkstra-result" id="dijkstra-result"></div>
     <div class="section-title">STATISTIQUES</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem">
       <div class="stat-box"><div class="label">Artistes</div><div class="value">${GRAPH.nodes.length}</div></div>
