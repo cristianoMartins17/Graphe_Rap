@@ -2,6 +2,8 @@
 
 ## Description
 
+(Notre professeur a autorisé, voire conseillé, l'utilisation de l'IA. J'ai donc utilisé Claude pour le HTML et l'implémentation de Dijkstra.)
+
 Ce projet modélise et analyse les collaborations musicales (featurings) entre artistes du rap francophone en utilisant la théorie des graphes.
 Chaque artiste est représenté par un nœud et chaque collaboration par une arête pondérée correspondant au nombre de morceaux réalisés ensemble.
 
